@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native GTK and GStreamer dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            gir1.2-adw-1 gir1.2-gst-plugins-base-1.0 gir1.2-gstreamer-1.0 \
+            gir1.2-gtk-4.0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            libadwaita-1-0 libgtk-4-1 python3-gi python3-gi-cairo
+      - uses: astral-sh/setup-uv@v6
+      - name: Create the system-GTK-aware environment
+        run: |
+          uv venv --python /usr/bin/python3 --system-site-packages
+          uv pip install --python .venv/bin/python --editable '.[dev]'
+      - name: Test and lint
+        run: |
+          .venv/bin/python -m unittest discover -v
+          .venv/bin/ruff check src tests scripts
+          .venv/bin/python -m compileall -q src tests
+          bash -n scripts/run-dev scripts/install-user scripts/setup-local-ai scripts/setup-virtual-camera
+          .venv/bin/python scripts/check-site
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: python scripts/check-site
+      - run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: link-studio-dist
+          path: dist/

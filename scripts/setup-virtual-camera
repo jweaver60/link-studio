@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v omarchy >/dev/null 2>&1; then
+  printf 'This helper expects Omarchy. Install v4l2loopback-dkms and v4l2loopback-utils manually.\n' >&2
+  exit 1
+fi
+
+omarchy pkg add v4l2loopback-dkms v4l2loopback-utils linux-headers
+
+if lsmod | grep -q '^v4l2loopback'; then
+  printf 'v4l2loopback is already loaded. Existing devices:\n'
+  v4l2-ctl --list-devices | sed -n '/v4l2loopback\|Link Studio/,+2p'
+  exit 0
+fi
+
+printf 'Loading a temporary Link Studio virtual camera (sudo may ask for your password).\n'
+sudo modprobe v4l2loopback devices=1 video_nr=20 card_label="Link Studio Virtual Camera" exclusive_caps=1
+printf 'Created /dev/video20. Restart Link Studio to use it.\n'
+printf 'The module remains loaded until reboot; no persistent system configuration was written.\n'

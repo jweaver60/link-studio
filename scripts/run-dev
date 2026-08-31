@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+DEV_ENV="$PROJECT_DIR/.venv"
+SYSTEM_PYTHON=${LINK_STUDIO_PYTHON:-$(command -v python)}
+
+if ! "$SYSTEM_PYTHON" -c 'import gi' >/dev/null 2>&1; then
+  printf 'Link Studio requires the system GTK bindings (python-gobject / gi).\n' >&2
+  exit 1
+fi
+
+if [[ ! -x "$DEV_ENV/bin/python" ]] || \
+  ! "$DEV_ENV/bin/python" -c 'import gi' >/dev/null 2>&1; then
+  if ! command -v uv >/dev/null 2>&1; then
+    printf 'Link Studio development requires uv: https://docs.astral.sh/uv/\n' >&2
+    exit 1
+  fi
+  uv venv --clear --python "$SYSTEM_PYTHON" --system-site-packages --seed "$DEV_ENV"
+fi
+
+if ! "$DEV_ENV/bin/python" -c 'import cv2, gi, mediapipe, numpy, qrcode' >/dev/null 2>&1; then
+  uv pip install --python "$DEV_ENV/bin/python" --editable "$PROJECT_DIR"
+fi
+
+export PYTHONPATH="$PROJECT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+exec "$DEV_ENV/bin/python" -m link_studio "$@"

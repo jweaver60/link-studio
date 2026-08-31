@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#101019">
+    <meta name="description" content="Guide to Link Studio camera, effects, audio, remote, and production features.">
+    <meta property="og:title" content="Feature guide · Link Studio"><meta property="og:description" content="Camera control, local effects, audio, remote, and production tools."><meta property="og:type" content="article"><meta property="og:url" content="https://jweaver60.github.io/link-studio/docs/features.html">
+    <meta name="twitter:card" content="summary"><meta name="twitter:title" content="Feature guide · Link Studio"><meta name="twitter:description" content="Camera control, local effects, audio, remote, and production tools."><title>Feature guide · Link Studio</title>
+    <link rel="stylesheet" href="../assets/styles.css"><link rel="stylesheet" href="../assets/docs.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#docs-main">Skip to content</a>
+    <header class="site-header docs-header"><a class="brand" href="../"><span class="brand-mark" aria-hidden="true"><span></span></span><span>Link Studio</span></a><nav aria-label="Main navigation"><a href="../#features">Features</a><a href="./">Docs</a><a href="parity.html">Parity</a><a class="nav-github" href="https://github.com/jweaver60/link-studio">GitHub</a></nav></header>
+    <main class="docs-layout" id="docs-main">
+      <aside class="docs-sidebar" aria-label="Documentation"><p>Documentation</p><a href="./">Overview</a><a href="installation.html">Installation</a><a aria-current="page" href="features.html">Feature guide</a><a href="parity.html">Parity & safety</a></aside>
+      <article class="docs-content">
+        <p class="eyebrow">Feature guide</p><h1>A complete<br><span>production surface.</span></h1>
+        <p class="docs-lede">Direct Link 2 hardware control and Linux-native processing live in one application. Anything processed locally appears consistently in preview, capture, recording, and the optional virtual camera.</p>
+        <h2 id="camera">Camera and image</h2>
+        <p>Use the mode bar for Normal, AI Tracking, Whiteboard, Overhead, and DeskView. The View and Image pages expose pan, tilt, center, zoom, autofocus/manual focus, mirror, privacy, HDR, automatic or manual exposure, white balance, anti-flicker, and the full standard color set.</p>
+        <div class="callout"><strong>Cooperative control</strong><p>Link Studio never detaches <span class="inline-code">uvcvideo</span>. Camera changes are serialized and paced so the preview, OBS, and other Linux clients can coexist safely.</p></div>
+        <h2 id="tracking">Tracking and composition</h2>
+        <p>Choose camera AI for the Link 2's native single-person tracking or a Link Studio engine for local single/group tracking. Local modes support one tracking boundary and six pause areas drawn directly over preview. Framing options cover head, half body, and whole body.</p>
+        <h2 id="effects">Local AI effects</h2>
+        <div class="feature-list">
+          <div><b>Background blur</b><span>Adjustable person-aware blur.</span></div><div><b>Natural bokeh</b><span>Depth-style subject separation.</span></div>
+          <div><b>Replacement</b><span>Color or center-cropped image backgrounds.</span></div><div><b>Green screen</b><span>Configurable key color and tolerance.</span></div>
+          <div><b>Beautify + makeup</b><span>Face-landmark-aware local processing.</span></div><div><b>Smart Whiteboard</b><span>Markerless detection and rectification.</span></div>
+        </div>
+        <p>MediaPipe models are bundled and loaded lazily. No camera frame is sent to an inference service.</p>
+        <h2 id="audio">Audio and capture</h2>
+        <p>The Audio page controls the Link 2's hardware <strong>Voice Focus</strong>, <strong>Voice Suppression</strong>, and <strong>Music Balance</strong> modes. PipeWire supplies source choice, mute, and volume. Standard recordings combine H.264 video with 48 kHz mono AAC from the selected microphone.</p>
+        <h2 id="scenes">Scenes and color templates</h2>
+        <p>Scenes save a complete camera setup and support apply, update, rename, delete, and default-on-startup. Independent color templates recall exposure, white balance, and color values without changing composition or smart mode.</p>
+        <h2 id="tools">Remote, shortcuts, and tools</h2>
+        <ul><li><strong>Phone remote:</strong> opt-in LAN server with an unguessable session token and QR pairing.</li><li><strong>Global actions:</strong> fourteen compositor-managed actions through the XDG portal; no Hyprland file edits.</li><li><strong>Teleprompter:</strong> local scripts, import/edit, speed, font size, colors, opacity, guide, looping, and countdown.</li><li><strong>Local AI recording:</strong> WAV voice notes, pause/resume, timestamped notes and screenshot markers, optional Whisper transcription, and Markdown summary.</li><li><strong>Support bundle:</strong> diagnostics, formats, runtime state, and rotating logs without camera images.</li></ul>
+        <h2 id="omarchy">Omarchy theming</h2>
+        <p>Link Studio watches the active <span class="inline-code">colors.toml</span> and theme name. Libadwaita surfaces, accents, selections, semantic colors, and the phone interface update immediately after an Omarchy theme change.</p>
+        <div class="doc-footer-nav"><a href="installation.html">← Installation</a><a href="parity.html">Parity & safety →</a></div>
+      </article>
+    </main>
+  </body>
+</html>

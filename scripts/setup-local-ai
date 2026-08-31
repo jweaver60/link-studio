@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DATA_ROOT=${XDG_DATA_HOME:-$HOME/.local/share}
+MODEL_DIR="$DATA_ROOT/link-studio/models"
+MODEL_PATH="$MODEL_DIR/ggml-base.bin"
+MODEL_URL='https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin'
+MODEL_SHA256='60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe'
+
+if ! command -v whisper-cli >/dev/null 2>&1 && ! command -v whisper-cpp >/dev/null 2>&1; then
+  if command -v omarchy >/dev/null 2>&1; then
+    omarchy pkg add whisper-cpp
+  else
+    printf 'Install whisper.cpp with your distribution package manager, then run this helper again.\n' >&2
+    exit 1
+  fi
+fi
+
+mkdir -p "$MODEL_DIR"
+if [[ -f "$MODEL_PATH" ]] && printf '%s  %s\n' "$MODEL_SHA256" "$MODEL_PATH" | sha256sum --check --status; then
+  printf 'Local AI is already ready: %s\n' "$MODEL_PATH"
+  exit 0
+fi
+
+PARTIAL="$MODEL_PATH.part"
+trap 'rm -f -- "$PARTIAL"' EXIT
+printf 'Downloading the multilingual Whisper base model (about 142 MiB)…\n'
+curl --fail --location --retry 3 --continue-at - --output "$PARTIAL" "$MODEL_URL"
+printf '%s  %s\n' "$MODEL_SHA256" "$PARTIAL" | sha256sum --check
+mv -- "$PARTIAL" "$MODEL_PATH"
+trap - EXIT
+printf 'Local transcription is ready: %s\n' "$MODEL_PATH"

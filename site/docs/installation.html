@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#101019">
+    <meta name="description" content="Install Link Studio on Omarchy and Arch Linux.">
+    <meta property="og:title" content="Installation · Link Studio"><meta property="og:description" content="Install Link Studio on Omarchy and Arch Linux."><meta property="og:type" content="article"><meta property="og:url" content="https://jweaver60.github.io/link-studio/docs/installation.html">
+    <meta name="twitter:card" content="summary"><meta name="twitter:title" content="Installation · Link Studio"><meta name="twitter:description" content="Install Link Studio on Omarchy and Arch Linux."><title>Installation · Link Studio</title>
+    <link rel="stylesheet" href="../assets/styles.css"><link rel="stylesheet" href="../assets/docs.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#docs-main">Skip to content</a>
+    <header class="site-header docs-header"><a class="brand" href="../"><span class="brand-mark" aria-hidden="true"><span></span></span><span>Link Studio</span></a><nav aria-label="Main navigation"><a href="../#features">Features</a><a href="./">Docs</a><a href="parity.html">Parity</a><a class="nav-github" href="https://github.com/jweaver60/link-studio">GitHub</a></nav></header>
+    <main class="docs-layout" id="docs-main">
+      <aside class="docs-sidebar" aria-label="Documentation"><p>Documentation</p><a href="./">Overview</a><a aria-current="page" href="installation.html">Installation</a><a href="features.html">Feature guide</a><a href="parity.html">Parity & safety</a></aside>
+      <article class="docs-content">
+        <p class="eyebrow">Get started</p><h1>Install on<br><span>Omarchy or Arch.</span></h1>
+        <p class="docs-lede">Link Studio installs for one user without changing Hyprland or Omarchy configuration. Optional helpers add a virtual camera and offline transcription only when requested.</p>
+        <div class="callout warning"><strong>Private preview</strong><p>The AUR recipe is complete and tested locally, but AUR publication waits for a publicly downloadable source release. The GitHub repository remains private for now.</p></div>
+        <h2 id="aur">AUR launch</h2>
+        <p>Once the upstream source release is public, install the stable package with your preferred AUR helper:</p>
+        <div class="code-block">yay -S link-studio</div>
+        <p>The package depends on the normal Arch GTK, GStreamer, PipeWire, OpenCV, and Python stack plus <span class="inline-code">python-mediapipe</span> from the AUR.</p>
+        <h2 id="source">Private source install</h2>
+        <p>Repository collaborators can clone over SSH and run the user installer:</p>
+        <div class="code-block">git clone git@github.com:jweaver60/link-studio.git
+cd link-studio
+./scripts/install-user</div>
+        <p>The installer anchors its environment to <span class="inline-code">/usr/bin/python</span>, preserving Omarchy's system GTK bindings while installing Link Studio's Python dependencies.</p>
+        <h2 id="requirements">Native requirements</h2>
+        <div class="code-block">sudo pacman -S gtk4 libadwaita python-gobject gstreamer \
+  gst-plugins-base gst-plugins-good gst-plugins-bad gst-libav v4l-utils</div>
+        <h2 id="optional">Optional integrations</h2>
+        <h3>Processed virtual camera</h3><p>Creates a temporary <span class="inline-code">/dev/video20</span> through <span class="inline-code">v4l2loopback</span>. The helper uses Omarchy's package command and does not write persistent kernel configuration.</p>
+        <div class="code-block">link-studio-setup-virtual-camera</div>
+        <h3>Offline transcription</h3><p>Installs whisper.cpp and downloads the multilingual base model. The 142 MiB model is verified against a pinned SHA-256 digest before use.</p>
+        <div class="code-block">link-studio-setup-local-ai</div>
+        <h2 id="diagnostics">Verify the camera</h2>
+        <div class="code-block">link-studio --version
+link-studio --diagnose</div>
+        <p>Diagnostics are read-only. They report detected devices, advertised formats, firmware/build information, current safe control state, and the active Omarchy palette.</p>
+        <div class="doc-footer-nav"><a href="./">← Overview</a><a href="features.html">Feature guide →</a></div>
+      </article>
+    </main>
+  </body>
+</html>

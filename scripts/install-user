@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+DATA_ROOT=${XDG_DATA_HOME:-$HOME/.local/share}
+BIN_ROOT=${XDG_BIN_HOME:-$HOME/.local/bin}
+INSTALL_ROOT="$DATA_ROOT/link-studio"
+SYSTEM_PYTHON=${LINK_STUDIO_PYTHON:-$(command -v python)}
+
+if ! "$SYSTEM_PYTHON" -c 'import gi' >/dev/null 2>&1; then
+  printf 'Link Studio requires the system GTK bindings (python-gobject / gi).\n' >&2
+  exit 1
+fi
+
+if command -v uv >/dev/null 2>&1; then
+  uv venv --clear --python "$SYSTEM_PYTHON" --system-site-packages --seed \
+    "$INSTALL_ROOT/venv"
+  uv pip install --python "$INSTALL_ROOT/venv/bin/python" --upgrade "$PROJECT_DIR"
+else
+  "$SYSTEM_PYTHON" -m venv --clear --system-site-packages "$INSTALL_ROOT/venv"
+  "$INSTALL_ROOT/venv/bin/python" -m ensurepip --upgrade
+  "$INSTALL_ROOT/venv/bin/python" -m pip install --upgrade "$PROJECT_DIR"
+fi
+
+install -Dm644 "$PROJECT_DIR/data/io.github.linkstudio.LinkStudio.desktop" \
+  "$DATA_ROOT/applications/io.github.linkstudio.LinkStudio.desktop"
+install -Dm644 "$PROJECT_DIR/data/io.github.linkstudio.LinkStudio.metainfo.xml" \
+  "$DATA_ROOT/metainfo/io.github.linkstudio.LinkStudio.metainfo.xml"
+mkdir -p "$BIN_ROOT"
+ln -sfn "$INSTALL_ROOT/venv/bin/link-studio" "$BIN_ROOT/link-studio"
+install -Dm755 "$PROJECT_DIR/scripts/setup-virtual-camera" \
+  "$BIN_ROOT/link-studio-setup-virtual-camera"
+install -Dm755 "$PROJECT_DIR/scripts/setup-local-ai" \
+  "$BIN_ROOT/link-studio-setup-local-ai"
+
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database "$DATA_ROOT/applications"
+fi
+
+printf 'Installed Link Studio. Run: %s/link-studio\n' "$BIN_ROOT"

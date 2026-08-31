@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101019">
+    <meta name="description" content="Link Studio is the complete native Linux controller for Insta360 Link webcams, built for Omarchy.">
+    <meta property="og:title" content="Link Studio — Insta360 Link control for Linux">
+    <meta property="og:description" content="Native controls, local AI effects, recording, remote control, and automatic Omarchy theming.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://jweaver60.github.io/link-studio/">
+    <meta property="og:image" content="https://jweaver60.github.io/link-studio/assets/og.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Link Studio — Insta360 Link control for Linux">
+    <meta name="twitter:description" content="Your Link 2 finally belongs on Linux.">
+    <meta name="twitter:image" content="https://jweaver60.github.io/link-studio/assets/og.png">
+    <title>Link Studio — Insta360 Link control for Linux</title>
+    <link rel="stylesheet" href="assets/styles.css">
+    <script src="assets/site.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="Link Studio home">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>Link Studio</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#features">Features</a>
+        <a href="docs/">Docs</a>
+        <a href="docs/parity.html">Parity</a>
+        <a class="nav-github" href="https://github.com/jweaver60/link-studio">GitHub</a>
+      </nav>
+    </header>
+    <div class="preview-banner"><strong>Pre-release preview</strong><span>AUR installation activates with the public source release.</span></div>
+
+    <main id="main">
+      <section class="hero section-shell">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="status-dot"></span> Native on Linux · Built for Omarchy</p>
+          <h1>Your Link 2 finally<br><span>belongs on Linux.</span></h1>
+          <p class="hero-lede">Complete camera control, local AI effects, studio-quality capture,
+            and a UI that follows your Omarchy theme in real time.</p>
+          <div class="hero-actions">
+            <a class="button primary" href="docs/installation.html">Install on Arch</a>
+            <a class="button secondary" href="docs/">Explore the docs <span aria-hidden="true">→</span></a>
+          </div>
+          <div class="install-command" aria-label="Install command">
+            <code>yay -S link-studio</code>
+            <button type="button" data-copy="yay -S link-studio" aria-label="Copy install command">Copy</button>
+          </div>
+          <p class="microcopy">Unofficial, open source, and local-first. Hardware-tested with Link 2.</p>
+        </div>
+
+        <div class="product-stage" aria-label="Stylized Link Studio application preview">
+          <div class="ambient ambient-one"></div>
+          <div class="ambient ambient-two"></div>
+          <div class="app-window">
+            <div class="window-bar">
+              <div class="window-title"><span class="mini-mark"></span> Link Studio</div>
+              <div class="window-device"><span class="status-dot"></span> Insta360 Link 2</div>
+            </div>
+            <div class="app-body">
+              <div class="preview-pane">
+                <div class="camera-feed">
+                  <div class="focus-frame"><span></span><span></span><span></span><span></span></div>
+                  <div class="subject-silhouette" aria-hidden="true">
+                    <span class="head"></span><span class="body"></span>
+                  </div>
+                  <div class="feed-label"><span class="live-dot"></span> LIVE <b>1280 × 720 · 30 fps</b></div>
+                </div>
+                <div class="mode-row">
+                  <span class="mode active">Normal</span><span class="mode">AI Tracking</span>
+                  <span class="mode">Whiteboard</span><span class="mode">DeskView</span>
+                </div>
+              </div>
+              <div class="control-pane">
+                <div class="control-tabs"><span>View</span><span class="active">Smart</span><span>Effects</span></div>
+                <p class="control-label">AI TRACKING</p>
+                <div class="control-row"><span>Tracking engine</span><b>Link Studio single</b></div>
+                <div class="control-row"><span>Smart composition</span><b>Half body</b></div>
+                <div class="slider"><span></span></div>
+                <div class="switch-row"><span>Gesture zoom</span><i></i></div>
+                <div class="theme-chip"><span></span> Omarchy · Catppuccin</div>
+              </div>
+            </div>
+          </div>
+          <div class="float-card float-ai"><span class="float-icon">✦</span><div><b>Local AI</b><small>On-device processing</small></div></div>
+          <div class="float-card float-theme"><span class="palette-dot blue"></span><span class="palette-dot mauve"></span><span class="palette-dot green"></span><b>Theme synced</b></div>
+        </div>
+      </section>
+
+      <section class="trust-strip" aria-label="Highlights">
+        <span>GTK4 + libadwaita</span><span>V4L2 + UVC</span><span>MediaPipe + OpenCV</span>
+        <span>PipeWire + GStreamer</span><span>XDG Portals</span>
+      </section>
+
+      <section class="features section-shell" id="features">
+        <div class="section-heading">
+          <p class="eyebrow">One studio. Every workflow.</p>
+          <h2>More than a camera controller.</h2>
+          <p>Link Studio gives Linux creators the complete production surface the webcam deserves.</p>
+        </div>
+        <div class="bento-grid">
+          <article class="feature-card feature-large">
+            <div class="feature-icon">◎</div>
+            <p class="card-kicker">DIRECT HARDWARE CONTROL</p>
+            <h3>Move, frame, focus.</h3>
+            <p>Pan, tilt, center, 4× zoom, focus, HDR, exposure, color, and every validated Link 2 AI mode—without detaching the Linux driver.</p>
+            <div class="ptz-demo" aria-hidden="true"><button>↑</button><button>←</button><button class="center">◎</button><button>→</button><button>↓</button></div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon accent-green">✦</div>
+            <p class="card-kicker">LOCAL AI EFFECTS</p>
+            <h3>Your video stays yours.</h3>
+            <p>Blur, bokeh, replacement, green screen, beautify, makeup, and Smart Whiteboard run on your machine.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon accent-mauve">◉</div>
+            <p class="card-kicker">CAPTURE + OUTPUT</p>
+            <h3>Ready for the whole stack.</h3>
+            <p>H.264/AAC recording, PNG captures, custom folders, and a processed virtual camera for OBS and calls.</p>
+          </article>
+          <article class="feature-card theme-card">
+            <div>
+              <div class="feature-icon accent-yellow">◐</div>
+              <p class="card-kicker">OMARCHY NATIVE</p>
+              <h3>It already matches.</h3>
+              <p>Change your Omarchy theme and Link Studio follows—surfaces, accents, semantic colors, and phone remote.</p>
+            </div>
+            <div class="palette" aria-label="Catppuccin-inspired color palette">
+              <span style="--swatch:#89b4fa"></span><span style="--swatch:#cba6f7"></span>
+              <span style="--swatch:#a6e3a1"></span><span style="--swatch:#f9e2af"></span>
+              <span style="--swatch:#f38ba8"></span>
+            </div>
+          </article>
+          <article class="feature-card feature-wide">
+            <div class="feature-copy">
+              <div class="feature-icon">⌁</div>
+              <p class="card-kicker">CONTROL FROM ANYWHERE</p>
+              <h3>Desktop, keyboard, or phone.</h3>
+              <p>Compact mode, 14 compositor-managed global actions, and a token-authenticated LAN remote with QR pairing.</p>
+            </div>
+            <div class="remote-demo" aria-hidden="true"><div class="phone"><span class="notch"></span><b>Link Studio</b><small>LIVE · 1080p</small><div class="remote-pad">↑<br>← ◎ →<br>↓</div></div></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="parity-section section-shell">
+        <div class="parity-copy">
+          <p class="eyebrow">A complete Linux application</p>
+          <h2>Parity without pretending.</h2>
+          <p>Validated hardware controls where the protocol is understood. Deterministic local equivalents where Linux is stronger. Clear boundaries where proprietary cloud services or destructive unknown firmware writes begin.</p>
+          <a class="text-link" href="docs/parity.html">Read the parity contract <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="parity-list">
+          <div><span>01</span><p><b>Hardware-tested</b><small>Every direct write is paced and verified.</small></p><i>✓</i></div>
+          <div><span>02</span><p><b>Local-first</b><small>No account, cloud, or telemetry required.</small></p><i>✓</i></div>
+          <div><span>03</span><p><b>Linux-native</b><small>Portals, PipeWire, V4L2, GTK.</small></p><i>✓</i></div>
+          <div><span>04</span><p><b>Recovery-aware</b><small>Unknown destructive writes are never guessed.</small></p><i>✓</i></div>
+        </div>
+      </section>
+
+      <section class="cta section-shell">
+        <div>
+          <p class="eyebrow">Ready when you are</p>
+          <h2>Put your Link 2 to work.</h2>
+        </div>
+        <div class="cta-actions">
+          <a class="button primary" href="docs/installation.html">Install Link Studio</a>
+          <a class="button secondary" href="docs/">Read the documentation</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><span></span></span><span>Link Studio</span></div>
+      <p>Independent software for Insta360 Link webcams. Not affiliated with Insta360.</p>
+      <div><a href="docs/">Docs</a><a href="docs/parity.html">Parity</a><a href="https://github.com/jweaver60/link-studio">GitHub</a></div>
+    </footer>
+    <div class="copy-toast" role="status" aria-live="polite">Copied to clipboard</div>
+  </body>
+</html>

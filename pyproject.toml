@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "link-studio"
+version = "1.0.0"
+description = "Native Linux controller for Insta360 Link webcams"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+authors = [{ name = "Link Studio contributors" }]
+keywords = ["insta360", "webcam", "uvc", "v4l2", "gtk", "omarchy"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: X11 Applications :: GTK",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Video",
+]
+dependencies = [
+  "mediapipe>=1.0.1",
+  "numpy>=2.0",
+  "qrcode[pil]>=8.0",
+]
+
+[project.urls]
+Homepage = "https://jweaver60.github.io/link-studio/"
+Documentation = "https://jweaver60.github.io/link-studio/docs/"
+Repository = "https://github.com/jweaver60/link-studio"
+Issues = "https://github.com/jweaver60/link-studio/issues"
+
+[project.optional-dependencies]
+dev = ["build>=1.3", "installer>=0.7", "ruff>=0.12"]
+
+[project.scripts]
+link-studio = "link_studio.__main__:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+link_studio = ["models/*.task", "models/*.tflite"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+ignore = ["BLE001", "DTZ005", "FLY002", "S110", "S112"]
