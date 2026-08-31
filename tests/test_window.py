@@ -1,11 +1,44 @@
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from link_studio.constants import ANTI_FLICKER_LABELS, TRACKING_SPEED_MAX
 from link_studio.geometry import contained_rect, frame_region_from_drag
 from link_studio.presets import Preset
-from link_studio.window import Gtk, LinkStudioWindow, control_dropdown_index
+from link_studio.window import LinkStudioWindow, control_dropdown_index
+
+
+class _FakeSwitch:
+    def __init__(self, active=False):
+        self.active = active
+
+    def set_active(self, active):
+        self.active = active
+
+    def get_active(self):
+        return self.active
+
+
+class _FakeSpinButton:
+    def __init__(self, value=0):
+        self.value = value
+
+    def set_value(self, value):
+        self.value = value
+
+    def get_value_as_int(self):
+        return round(self.value)
+
+
+class _FakeDropDown:
+    def __init__(self, selected=0):
+        self.selected = selected
+
+    def set_selected(self, selected):
+        self.selected = selected
+
+    def get_selected(self):
+        return self.selected
 
 
 class _FakeCamera:
@@ -50,9 +83,9 @@ class WindowRegressionTests(unittest.TestCase):
         )
 
     def test_control_widgets_resync_without_emitting_user_operations(self):
-        switch = Gtk.Switch(active=False)
-        spin = Gtk.SpinButton.new_with_range(0, 400, 1)
-        dropdown = Gtk.DropDown.new_from_strings(list(ANTI_FLICKER_LABELS))
+        switch = _FakeSwitch()
+        spin = _FakeSpinButton()
+        dropdown = _FakeDropDown()
         window = SimpleNamespace(
             _updating=False,
             _control_widgets={
@@ -62,9 +95,15 @@ class WindowRegressionTests(unittest.TestCase):
             },
         )
 
-        LinkStudioWindow._sync_control_widgets(
-            window, {"hdr": True, "zoom": 175, "anti_flicker": 3}
+        fake_gtk = SimpleNamespace(
+            Switch=_FakeSwitch,
+            SpinButton=_FakeSpinButton,
+            DropDown=_FakeDropDown,
         )
+        with patch("link_studio.window.Gtk", fake_gtk):
+            LinkStudioWindow._sync_control_widgets(
+                window, {"hdr": True, "zoom": 175, "anti_flicker": 3}
+            )
 
         self.assertTrue(switch.get_active())
         self.assertEqual(spin.get_value_as_int(), 175)
