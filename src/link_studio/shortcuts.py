@@ -5,6 +5,7 @@ import os
 import secrets
 import tempfile
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -57,8 +58,8 @@ class ShortcutSettings:
 
     def load(self) -> bool:
         try:
-            value = json.loads(self.path.read_text())
-        except (OSError, json.JSONDecodeError):
+            value = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
             self.enabled = False
         else:
             self.enabled = bool(value.get("enabled", False)) if isinstance(value, dict) else False
@@ -284,7 +285,7 @@ class GlobalShortcutPortal:
 
     def stop(self, remember: bool = False) -> None:
         if self.connection and self.session_handle:
-            try:
+            with suppress(GLib.Error):
                 self.connection.call_sync(
                     PORTAL_NAME,
                     self.session_handle,
@@ -296,8 +297,6 @@ class GlobalShortcutPortal:
                     3000,
                     None,
                 )
-            except GLib.Error:
-                pass
         self.session_handle = None
         self._requests.clear()
         if not remember:

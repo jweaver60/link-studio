@@ -1,6 +1,10 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from link_studio.meeting import summarize_transcript
+from link_studio.meeting import MeetingResult, summarize_transcript, transcribe_meeting
 
 
 class MeetingSummaryTests(unittest.TestCase):
@@ -20,6 +24,29 @@ class MeetingSummaryTests(unittest.TestCase):
 
     def test_empty_transcript_has_a_clear_result(self):
         self.assertIn("No speech was transcribed", summarize_transcript("   "))
+
+    def test_transcript_and_summary_are_explicit_utf8(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            audio = root / "audio.wav"
+            audio.touch()
+            model = root / "model.bin"
+            model.touch()
+            result = MeetingResult(root, audio, root / "markers.json", 1.0)
+
+            def run(command, **_kwargs):
+                prefix = Path(command[command.index("-of") + 1])
+                prefix.with_suffix(".txt").write_bytes("Résumé 日本語.".encode())
+                return SimpleNamespace(returncode=0, stderr="", stdout="")
+
+            with (
+                patch("link_studio.meeting._whisper_command", return_value="whisper-cli"),
+                patch("link_studio.meeting.subprocess.run", side_effect=run),
+            ):
+                transcript, summary = transcribe_meeting(result, model_path=model)
+
+            self.assertEqual(transcript.read_text(encoding="utf-8"), "Résumé 日本語.")
+            self.assertIn("Résumé 日本語", summary.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

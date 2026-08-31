@@ -7,6 +7,7 @@ import re
 import struct
 import threading
 import time
+from contextlib import suppress
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Self
@@ -279,7 +280,7 @@ class Camera:
             length = int.from_bytes(raw, "little")
             if length <= 0:
                 raise CameraError(f"invalid XU length {length}")
-        except OSError:
+        except (OSError, CameraError):
             if fallback is None:
                 raise
             length = fallback
@@ -463,12 +464,9 @@ class Camera:
         length = self.xu_length(XU_PRIVACY_UNIT, XU_PRIVACY, 2)
         wire_value = 2 if enabled else 0
         payload = wire_value.to_bytes(length, "little")
-        try:
+        # The feature bit is authoritative; some firmware rejects this companion write.
+        with suppress(OSError):
             self.xu_set(XU_PRIVACY_UNIT, XU_PRIVACY, payload)
-        except OSError:
-            # The authoritative Link 2 control is feature bit 11; some firmware
-            # revisions reject the secondary unit-10 write.
-            pass
         return self.get_privacy()
 
     def get_device_information(self) -> dict[str, str]:
@@ -531,7 +529,7 @@ class Camera:
         for key, reader in custom_readers.items():
             try:
                 state[key] = reader()
-            except (OSError, CameraError, ValueError) as exc:
+            except (OSError, CameraError, ValueError, struct.error, IndexError) as exc:
                 errors[key] = str(exc)
         if errors:
             state["unavailable"] = errors

@@ -20,8 +20,8 @@ class StorageSettings:
 
     def load(self) -> None:
         try:
-            raw = json.loads(self.path.read_text())
-        except (OSError, json.JSONDecodeError):
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
             return
         if not isinstance(raw, dict):
             return

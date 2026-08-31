@@ -56,6 +56,8 @@ VIDEO_MODES = {
 }
 
 FRAMING_MODES = {"head": 1, "half_body": 2, "whole_body": 3}
+ANTI_FLICKER_LABELS = ("Disabled", "50 Hz", "60 Hz", "Auto")
+TRACKING_SPEED_MAX = 255
 
 # Link 2/2C microphone DSP modes carried by XU9 selector 0x07. The default
 # firmware value is Voice Focus. Music Balance is the unprocessed/no-denoise

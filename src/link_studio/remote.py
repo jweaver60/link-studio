@@ -54,6 +54,7 @@ class RemoteServer:
     def start(self) -> str:
         if self.server:
             return self.url or ""
+        self.token = secrets.token_urlsafe(18)
         owner = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -66,7 +67,7 @@ class RemoteServer:
                 parsed = urlparse(self.path)
                 query = parse_qs(parsed.query)
                 supplied = self.headers.get("X-Link-Studio-Token") or query.get("token", [""])[0]
-                return secrets.compare_digest(supplied, owner.token)
+                return secrets.compare_digest(supplied.encode("utf-8"), owner.token.encode("ascii"))
 
             def _send_json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
                 encoded = json.dumps(payload, separators=(",", ":")).encode()

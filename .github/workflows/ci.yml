@@ -28,6 +28,7 @@ jobs:
       - name: Test and lint
         run: |
           .venv/bin/python -m unittest discover -v
+          .venv/bin/ruff format --check src tests scripts
           .venv/bin/ruff check src tests scripts
           .venv/bin/python -m compileall -q src tests
           bash -n scripts/run-dev scripts/install-user scripts/setup-local-ai scripts/setup-virtual-camera

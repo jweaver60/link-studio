@@ -4,15 +4,17 @@ import json
 import os
 import tempfile
 from dataclasses import asdict, dataclass
+from itertools import count
 from pathlib import Path
 
 import gi
 
 gi.require_version("Gdk", "4.0")
-gi.require_version("Gdk", "4.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gdk, GLib, Gtk
+
+_STYLE_SCOPE_IDS = count(1)
 
 
 def default_script_path() -> Path:
@@ -37,8 +39,8 @@ class ScriptStore:
 
     def load(self) -> list[TeleprompterScript]:
         try:
-            raw = json.loads(self.path.read_text())
-        except (OSError, json.JSONDecodeError):
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
             self.scripts = []
             return self.scripts
         loaded = []
@@ -105,6 +107,9 @@ class TeleprompterWindow(Gtk.ApplicationWindow):
         self._countdown = 0
         self._playing = False
         self._css = Gtk.CssProvider()
+        self._style_scope = f"link-teleprompter-{next(_STYLE_SCOPE_IDS)}"
+        self._guide_scope = f"{self._style_scope}-guide"
+        self._countdown_scope = f"{self._style_scope}-countdown"
         self._text_rgba = Gdk.RGBA()
         self._text_rgba.parse("#ffffff")
         self._background_rgba = Gdk.RGBA()
@@ -156,7 +161,7 @@ class TeleprompterWindow(Gtk.ApplicationWindow):
             top_margin=180,
             bottom_margin=300,
         )
-        self.text.add_css_class("link-teleprompter")
+        self.text.add_css_class(self._style_scope)
         self.text.get_buffer().set_text(script.text)
         self.scroll.set_child(self.text)
         overlay.set_child(self.scroll)
@@ -165,17 +170,20 @@ class TeleprompterWindow(Gtk.ApplicationWindow):
             valign=Gtk.Align.CENTER,
             can_target=False,
         )
-        self.guide_line.add_css_class("link-reading-guide")
+        self.guide_line.add_css_class(self._guide_scope)
         self.guide_line.set_margin_start(35)
         self.guide_line.set_margin_end(35)
         overlay.add_overlay(self.guide_line)
         self.countdown_label = Gtk.Label(
             label="", halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER, can_target=False
         )
-        self.countdown_label.add_css_class("link-countdown")
+        self.countdown_label.add_css_class(self._countdown_scope)
         overlay.add_overlay(self.countdown_label)
         root.append(overlay)
         self.set_child(root)
+        Gtk.StyleContext.add_provider_for_display(
+            self.get_display(), self._css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
         self._apply_style()
         self.connect("close-request", self._closed)
 
@@ -238,14 +246,12 @@ class TeleprompterWindow(Gtk.ApplicationWindow):
             else 0.94
         )
         self._css.load_from_string(
-            ".link-teleprompter {"
+            f".{self._style_scope} {{"
             f"font-size: {self.font_size.get_value_as_int()}px;"
             f"line-height: 1.35; color: rgb({text}); background: rgba({background},{opacity:.2f});"
-            "} .link-reading-guide {background:#89b4fa;min-height:2px;opacity:.7;}"
-            f".link-countdown {{font-size:96px;font-weight:800;color:rgb({text});}}"
-        )
-        Gtk.StyleContext.add_provider_for_display(
-            self.get_display(), self._css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            f"}} .{self._guide_scope} {{background:#89b4fa;min-height:2px;opacity:.7;}}"
+            f".{self._countdown_scope} "
+            f"{{font-size:96px;font-weight:800;color:rgb({text});}}"
         )
 
     def _play_toggled(self, button: Gtk.ToggleButton) -> None:
@@ -270,6 +276,9 @@ class TeleprompterWindow(Gtk.ApplicationWindow):
             self._playing = False
             self.countdown_label.set_visible(False)
             button.set_label("Play")
+            if self._timer:
+                GLib.source_remove(self._timer)
+                self._timer = 0
 
     def _tick(self) -> bool:
         if not self.play.get_active():
@@ -298,6 +307,7 @@ class TeleprompterWindow(Gtk.ApplicationWindow):
             if self.loop.get_active():
                 position = 0
             else:
+                self._timer = 0
                 self.play.set_active(False)
                 return False
         adjustment.set_value(position)

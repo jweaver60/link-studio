@@ -44,7 +44,7 @@ recording/virtual-camera pipeline, without claiming an undocumented firmware imp
 | App | Background global shortcuts | ✅ | Fourteen XDG GlobalShortcuts portal actions |
 | App | Teleprompter | ✅ | Local scripts, display styling, guide, loop, countdown |
 | App | Custom storage | ✅ | XDG-persisted capture destinations |
-| App | Logs and support bundle | ✅ | Rotating logs, diagnostics, formats, runtime status; no images |
+| App | Logs and support bundle | ✅ | Rotating logs, camera/formats, audio/video stack; no images |
 | Device | Firmware/build display | ✅ | Read directly from Link 2 |
 | Device | Firmware acquisition | ✅ safe flow | Official download/U-Disk instructions open from Device page |
 | Cloud | InSight-style AI recording | ✅ local | Voice notes, pause, markers, offline Whisper, local summary |

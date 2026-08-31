@@ -21,6 +21,14 @@
   <provides>
     <binary>link-studio</binary>
   </provides>
+  <screenshots>
+    <screenshot type="default">
+      <image type="source" width="1280" height="720">
+        https://jweaver60.github.io/link-studio/assets/link-studio-app.png
+      </image>
+      <caption>Link Studio controlling an Insta360 Link 2 with preview disabled</caption>
+    </screenshot>
+  </screenshots>
   <content_rating type="oars-1.1" />
   <releases>
     <release version="1.0.0" date="2026-08-31">

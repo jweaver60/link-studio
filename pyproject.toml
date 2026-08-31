@@ -22,6 +22,7 @@ classifiers = [
 dependencies = [
   "mediapipe>=1.0.1",
   "numpy>=2.0",
+  "opencv-contrib-python>=4.10",
   "qrcode[pil]>=8.0",
 ]
 
@@ -55,4 +56,19 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "BLE", "DTZ", "FLY", "S"]
 ignore = ["BLE001", "DTZ005", "FLY002", "S110", "S112"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/link_studio/application.py" = ["E402"]
+"src/link_studio/audio.py" = ["S603", "S607"]
+"src/link_studio/diagnostics.py" = ["S603"]
+"src/link_studio/meeting.py" = ["E402", "S603"]
+"src/link_studio/preview.py" = ["E402", "RUF001", "S603", "S607"]
+"src/link_studio/remote.py" = ["E501", "S104"]
+"src/link_studio/shortcuts.py" = ["E402"]
+"src/link_studio/teleprompter.py" = ["E402"]
+"src/link_studio/window.py" = ["E402", "RUF001"]
+"tests/**" = ["S101"]
+"tests/test_remote.py" = ["S310"]
+"tests/test_window.py" = ["E402"]

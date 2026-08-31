@@ -3,11 +3,17 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass, replace
 from importlib.resources import files
+from pathlib import Path
 from typing import Any
 
 Rect = tuple[float, float, float, float]
+
+
+def whiteboard_min_area(image: Any) -> float:
+    return image.shape[0] * image.shape[1] * 0.035
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,7 +85,8 @@ class EffectProcessor:
         self._last_tracking_notice = 0.0
         self._frame_number = 0
         self._timestamp_ms = 0
-        self._background_cache: tuple[str, Any] | None = None
+        self._analysis_generation = 0
+        self._background_cache: tuple[str, int, int, Any] | None = None
         self._whiteboard_quad: Any = None
 
     @property
@@ -127,6 +134,7 @@ class EffectProcessor:
             self._last_segmentation_frame = -100
             self._last_landmark_frame = -100
             self._whiteboard_quad = None
+            self._analysis_generation += 1
 
     @staticmethod
     def _model_path(name: str) -> str:
@@ -185,7 +193,11 @@ class EffectProcessor:
 
     def _segment(self, image: Any) -> Any:
         cv2, mp, np = self._load_runtime()
-        if self._frame_number - self._last_segmentation_frame >= 2 or self._last_mask is None:
+        with self._lock:
+            mask = self._last_mask
+            last_frame = self._last_segmentation_frame
+            generation = self._analysis_generation
+        if self._frame_number - last_frame >= 2 or mask is None:
             inference = image
             if image.shape[1] > 960:
                 scale = 960 / image.shape[1]
@@ -199,11 +211,13 @@ class EffectProcessor:
                 self._next_timestamp(),
             )
             mask = result.confidence_masks[0].numpy_view()[..., 0].copy()
-            self._last_mask = cv2.resize(
+            mask = cv2.resize(
                 mask, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_LINEAR
             )
-            self._last_segmentation_frame = self._frame_number
-        mask = self._last_mask
+            with self._lock:
+                if generation == self._analysis_generation:
+                    self._last_mask = mask
+                    self._last_segmentation_frame = self._frame_number
         if mask.shape[:2] != image.shape[:2]:
             mask = cv2.resize(mask, (image.shape[1], image.shape[0]))
         mask = cv2.GaussianBlur(mask, (0, 0), 2.2)
@@ -246,12 +260,17 @@ class EffectProcessor:
         height, width = image.shape[:2]
         path = settings.background_image
         if path:
-            if self._background_cache is None or self._background_cache[0] != path:
+            try:
+                stat = Path(path).stat()
+                cache_key = (path, stat.st_mtime_ns, stat.st_size)
+            except OSError:
+                cache_key = (path, -1, -1)
+            if self._background_cache is None or self._background_cache[:3] != cache_key:
                 loaded = cv2.imread(path, cv2.IMREAD_COLOR)
                 if loaded is not None:
                     loaded = cv2.cvtColor(loaded, cv2.COLOR_BGR2RGB)
-                self._background_cache = (path, loaded)
-            loaded = self._background_cache[1]
+                self._background_cache = (*cache_key, loaded)
+            loaded = self._background_cache[3]
             if loaded is not None:
                 source_h, source_w = loaded.shape[:2]
                 scale = max(width / source_w, height / source_h)
@@ -385,11 +404,12 @@ class EffectProcessor:
             contours, _hierarchy = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
             best = None
             best_area = 0.0
+            minimum_area = whiteboard_min_area(small)
             for contour in contours:
                 perimeter = cv2.arcLength(contour, True)
                 polygon = cv2.approxPolyDP(contour, 0.025 * perimeter, True)
                 area = abs(cv2.contourArea(polygon))
-                if len(polygon) == 4 and area > best_area and area > small.size * 0.035:
+                if len(polygon) == 4 and area > best_area and area > minimum_area:
                     best = polygon.reshape(4, 2).astype(np.float32) / scale
                     best_area = area
             if best is not None:
@@ -486,7 +506,9 @@ class EffectProcessor:
             return width, height, stride, data, pts
         cv2, _mp, np = self._load_runtime()
         rows = np.frombuffer(data, dtype=np.uint8).reshape(height, stride)
-        image = np.ascontiguousarray(rows[:, : width * 3].reshape(height, width, 3))
+        image = rows[:, : width * 3].reshape(height, width, 3)
+        if not image.flags.c_contiguous:
+            image = np.ascontiguousarray(image)
         self._frame_number += 1
 
         faces: list[list[tuple[float, float]]] = []
@@ -506,7 +528,9 @@ class EffectProcessor:
         elif settings.mode == "smart_whiteboard":
             image = self._apply_smart_whiteboard(image)
 
-        image = np.ascontiguousarray(self._orient(image, settings.orientation, cv2, np))
+        image = self._orient(image, settings.orientation, cv2, np)
+        if not image.flags.c_contiguous:
+            image = np.ascontiguousarray(image)
         output_height, output_width = image.shape[:2]
         output_stride = output_width * 3
         return output_width, output_height, output_stride, image.tobytes(), pts
@@ -514,9 +538,7 @@ class EffectProcessor:
     def close(self) -> None:
         for runtime in (self._segmenter, self._landmarker):
             if runtime is not None:
-                try:
+                with suppress(Exception):
                     runtime.close()
-                except Exception:
-                    pass
         self._segmenter = None
         self._landmarker = None

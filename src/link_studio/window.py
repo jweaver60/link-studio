@@ -6,6 +6,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -34,9 +35,17 @@ from .camera import (
     FEATURE_MIRROR,
     Camera,
 )
-from .constants import APP_NAME, FRAMING_MODES, STANDARD_CONTROLS, VIDEO_MODES
+from .constants import (
+    ANTI_FLICKER_LABELS,
+    APP_NAME,
+    FRAMING_MODES,
+    STANDARD_CONTROLS,
+    TRACKING_SPEED_MAX,
+    VIDEO_MODES,
+)
 from .diagnostics import create_support_bundle
 from .effects import Rect, TrackingTarget
+from .geometry import contained_rect, frame_region_from_drag
 from .meeting import (
     AudioNoteRecorder,
     MeetingResult,
@@ -61,6 +70,33 @@ from .teleprompter import ScriptStore, TeleprompterWindow
 from .theme import OmarchyThemeBridge, Palette
 
 LOGGER = logging.getLogger("link_studio.window")
+
+_DROPDOWN_VALUES: dict[str, tuple[object, ...]] = {
+    "anti_flicker": tuple(range(len(ANTI_FLICKER_LABELS))),
+    "framing": tuple(FRAMING_MODES),
+    "orientation": ("identity", "vertical_flip", "rotate_right", "rotate_left", "rotate_180"),
+    "effect_mode": (
+        "none",
+        "background_blur",
+        "bokeh",
+        "background_replace",
+        "green_screen",
+        "beauty",
+        "makeup",
+        "smart_whiteboard",
+    ),
+    "audio_mode": ("voice_focus", "voice_suppression", "music_balance"),
+}
+
+
+def control_dropdown_index(key: str, value: object) -> int | None:
+    choices = _DROPDOWN_VALUES.get(key)
+    if not choices:
+        return None
+    try:
+        return choices.index(value)
+    except ValueError:
+        return None
 
 
 def _videos_dir() -> Path:
@@ -116,6 +152,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         )
         self.last_meeting_result: MeetingResult | None = None
         self._ai_recording_timer = 0
+        self._preview_poll_source = 0
         self._teleprompter_windows: list[TeleprompterWindow] = []
         self.executor = concurrent.futures.ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="link-camera"
@@ -142,7 +179,6 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         self.theme_bridge = OmarchyThemeBridge(self._theme_applied)
         self.theme_bridge.start()
         self.connect("close-request", self._on_close_request)
-        GLib.timeout_add(33, self._poll_preview)
         if start_preview:
             GLib.idle_add(self._activate_preview)
         if self.presets.default_index is not None:
@@ -416,7 +452,12 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         switch = Gtk.Switch(active=initial, valign=Gtk.Align.CENTER)
         row.add_suffix(switch)
         row.set_activatable_widget(switch)
-        switch.connect("notify::active", lambda widget, _param: callback(widget.get_active()))
+
+        def changed(widget: Gtk.Switch, _param: object) -> None:
+            if not self._updating:
+                callback(widget.get_active())
+
+        switch.connect("notify::active", changed)
         group.add(row)
         self._control_widgets[key] = switch
         return switch
@@ -453,7 +494,12 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             unit_label.add_css_class("dim-label")
             suffix.append(unit_label)
         row.add_suffix(suffix)
-        spin.connect("value-changed", lambda widget: callback(widget.get_value_as_int()))
+
+        def changed(widget: Gtk.SpinButton) -> None:
+            if not self._updating:
+                callback(widget.get_value_as_int())
+
+        spin.connect("value-changed", changed)
         group.add(row)
         self._control_widgets[key] = spin
         return row
@@ -472,11 +518,43 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         dropdown = Gtk.DropDown.new_from_strings(labels)
         dropdown.set_selected(max(0, min(selected, len(labels) - 1)))
         dropdown.set_valign(Gtk.Align.CENTER)
-        dropdown.connect("notify::selected", lambda widget, _param: callback(widget.get_selected()))
+
+        def changed(widget: Gtk.DropDown, _param: object) -> None:
+            if not self._updating:
+                callback(widget.get_selected())
+
+        dropdown.connect("notify::selected", changed)
         row.add_suffix(dropdown)
         group.add(row)
         self._control_widgets[key] = dropdown
         return dropdown
+
+    def _sync_control_widgets(self, values: dict[str, Any]) -> None:
+        previous_updating = self._updating
+        self._updating = True
+        try:
+            for key, value in values.items():
+                widget = self._control_widgets.get(key)
+                if isinstance(widget, Gtk.Switch):
+                    widget.set_active(bool(value))
+                elif isinstance(widget, Gtk.SpinButton) and isinstance(value, int | float):
+                    widget.set_value(float(value))
+                elif isinstance(widget, Gtk.DropDown):
+                    selected = control_dropdown_index(key, value)
+                    if selected is not None:
+                        widget.set_selected(selected)
+            if "focus_auto" in values and hasattr(self, "focus_row"):
+                self.focus_row.set_sensitive(not bool(values["focus_auto"]))
+            if "white_balance_auto" in values and hasattr(self, "white_balance_row"):
+                self.white_balance_row.set_sensitive(not bool(values["white_balance_auto"]))
+            if "auto_exposure" in values:
+                enabled = bool(values["auto_exposure"])
+                if hasattr(self, "iso_row"):
+                    self.iso_row.set_sensitive(not enabled)
+                if hasattr(self, "shutter_row"):
+                    self.shutter_row.set_sensitive(not enabled)
+        finally:
+            self._updating = previous_updating
 
     def _build_presets_page(self) -> Gtk.Widget:
         page, content = self._page()
@@ -687,8 +765,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             color,
             "anti_flicker",
             "Anti-flicker",
-            ["Disabled", "50 Hz", "60 Hz"],
-            min(anti_flicker, 2),
+            list(ANTI_FLICKER_LABELS),
+            max(0, min(anti_flicker, len(ANTI_FLICKER_LABELS) - 1)),
             lambda selected: self._set_standard("anti_flicker", selected),
         )
         content.append(color)
@@ -737,12 +815,12 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             "Tracking speed",
             int(self.state.get("tracking_speed", 1)),
             0,
-            10,
+            TRACKING_SPEED_MAX,
             1,
             lambda value: self._debounce(
                 "tracking_speed", lambda: self.camera.set_tracking_speed(value)
             ),
-            "The firmware accepts 0–255; the useful Link 2 range is exposed here",
+            "Full firmware range",
         )
         self._combo_row(
             tracking,
@@ -757,7 +835,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
 
         regions = self._group(
             "Tracking areas",
-            "Start an editor, then drag a rectangle over the live preview. Up to six pause areas are supported.",
+            "Start an editor, then drag a rectangle over the live preview. "
+            "Up to six pause areas are supported.",
         )
         region_row = self._action_row("Tracking boundary")
         draw_tracking = Gtk.Button(label="Draw", valign=Gtk.Align.CENTER)
@@ -792,7 +871,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         )
         note = self._action_row(
             "Tracking and whiteboard gestures",
-            "The current firmware exposes these gestures as part of their AI modes; separate USB bits are still being mapped.",
+            "The current firmware exposes these gestures as part of their AI modes; "
+            "separate USB bits are still being mapped.",
             "dialog-information-symbolic",
         )
         gestures.add(note)
@@ -970,7 +1050,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         if selected_source:
             details = self._action_row(
                 "Capture format",
-                f"{selected_source.channels} channel · {selected_source.sample_rate // 1000} kHz · AAC in recordings",
+                f"{selected_source.channels} channel · "
+                f"{selected_source.sample_rate // 1000} kHz · AAC in recordings",
                 "audio-input-microphone-symbolic",
             )
             microphone.add(details)
@@ -1003,7 +1084,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
 
         recording = self._group(
             "Local AI recording",
-            "Records the selected microphone locally. Optional Whisper transcription and summaries stay on this computer.",
+            "Records the selected microphone locally. Optional Whisper transcription "
+            "and summaries stay on this computer.",
         )
         self.ai_record_toggle = Gtk.ToggleButton(
             label="Start AI Recording", valign=Gtk.Align.CENTER
@@ -1083,7 +1165,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             information.add(row)
         firmware_row = self._action_row(
             "Firmware update",
-            "Uses Insta360's recovery-safe U-Disk procedure; the current version is read directly from the camera.",
+            "Uses Insta360's recovery-safe U-Disk procedure; the current version is "
+            "read directly from the camera.",
         )
         firmware_link = Gtk.LinkButton(
             uri="https://www.insta360.com/download/insta360-link",
@@ -1096,7 +1179,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
 
         remote = self._group(
             "Phone remote",
-            "Starts a token-authenticated controller on this LAN only. No account or cloud is used.",
+            "Starts a token-authenticated controller on this LAN only. "
+            "No account or cloud is used.",
         )
         self.remote_switch = self._switch_row(
             remote,
@@ -1176,7 +1260,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         application.add(recording_location)
         support_row = self._action_row(
             "Support bundle",
-            "Exports diagnostics, formats, runtime status, and rotating logs without camera images.",
+            "Exports camera, video/audio stack, format, and rotating-log diagnostics "
+            "without camera images.",
         )
         support_button = Gtk.Button(label="Export", valign=Gtk.Align.CENTER)
         support_button.connect("clicked", lambda *_args: self.export_support_bundle())
@@ -1437,9 +1522,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
 
         def finished(result: MeetingResult) -> None:
             self.last_meeting_result = result
-            self.ai_record_status.set_label(
-                f"Saved · {self._format_duration(result.duration_seconds)} · {result.directory.name}"
-            )
+            duration = self._format_duration(result.duration_seconds)
+            self.ai_record_status.set_label(f"Saved · {duration} · {result.directory.name}")
             button.set_label("Start AI Recording")
             button.remove_css_class("destructive-action")
             button.set_sensitive(True)
@@ -1663,11 +1747,17 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             return
         start_x, start_y = self._drag_start
         end_x, end_y = start_x + offset_x, start_y + offset_y
-        left = max(0.0, min(start_x, end_x) / width)
-        top = max(0.0, min(start_y, end_y) / height)
-        right = min(1.0, max(start_x, end_x) / width)
-        bottom = min(1.0, max(start_y, end_y) / height)
-        self._drag_region = (left, top, max(0.0, right - left), max(0.0, bottom - top))
+        frame_width, frame_height = (
+            (self.latest_frame.width, self.latest_frame.height)
+            if self.latest_frame
+            else self.preview.output_dimensions
+        )
+        self._drag_region = frame_region_from_drag(
+            (start_x, start_y),
+            (end_x, end_y),
+            (width, height),
+            (frame_width, frame_height),
+        )
         self.region_overlay.queue_draw()
 
     def _region_drag_end(self, _gesture: Gtk.GestureDrag, _x: float, _y: float) -> None:
@@ -1704,9 +1794,23 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         self.region_overlay.queue_draw()
 
     def _draw_regions(self, _area: Gtk.DrawingArea, context: Any, width: int, height: int) -> None:
+        frame_width, frame_height = (
+            (self.latest_frame.width, self.latest_frame.height)
+            if self.latest_frame
+            else self.preview.output_dimensions
+        )
+        content_x, content_y, content_width, content_height = contained_rect(
+            width, height, frame_width, frame_height
+        )
+
         def rectangle(region: Rect, red: float, green: float, blue: float) -> None:
             x, y, region_width, region_height = region
-            context.rectangle(x * width, y * height, region_width * width, region_height * height)
+            context.rectangle(
+                content_x + x * content_width,
+                content_y + y * content_height,
+                region_width * content_width,
+                region_height * content_height,
+            )
             context.set_source_rgba(red, green, blue, 0.92)
             context.set_line_width(2.5)
             context.stroke()
@@ -1928,6 +2032,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         if button.get_active():
             try:
                 self.preview.start()
+                self._start_preview_poll()
                 button.set_icon_name("media-playback-stop-symbolic")
                 self.preview_placeholder_label.set_label("Starting preview…")
                 self.preview_status.set_label(self.preview.output_label)
@@ -1942,7 +2047,9 @@ class LinkStudioWindow(Adw.ApplicationWindow):
                 self.record_button.set_active(False)
             if hasattr(self, "virtual_camera_switch") and self.virtual_camera_switch.get_active():
                 self.virtual_camera_switch.set_active(False)
+            self._stop_preview_poll()
             self.preview.stop()
+            self.latest_frame = None
             self.picture.set_paintable(None)
             self.preview_placeholder.set_visible(True)
             self.preview_placeholder_label.set_label("Preview is off")
@@ -1987,12 +2094,23 @@ class LinkStudioWindow(Adw.ApplicationWindow):
                 self.compact_status.set_label(self.preview.output_label)
             except Exception as exc:
                 self._toast(f"Stream format unavailable: {exc}")
+                self._stop_preview_poll()
                 self._updating = True
                 self.preview_toggle.set_active(False)
                 self._updating = False
 
+    def _start_preview_poll(self) -> None:
+        if not self._preview_poll_source:
+            self._preview_poll_source = GLib.timeout_add(33, self._poll_preview)
+
+    def _stop_preview_poll(self) -> None:
+        if self._preview_poll_source:
+            GLib.source_remove(self._preview_poll_source)
+            self._preview_poll_source = 0
+
     def _poll_preview(self) -> bool:
         if self._closed:
+            self._preview_poll_source = 0
             return False
         error = self.preview.take_error()
         if error:
@@ -2009,6 +2127,9 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             )
             self.picture.set_paintable(texture)
             self.preview_placeholder.set_visible(False)
+        if not self.preview.running and frame is None:
+            self._preview_poll_source = 0
+            return False
         return True
 
     def _mode_toggled(self, button: Gtk.ToggleButton, mode: str) -> None:
@@ -2346,7 +2467,10 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         for index, preset in enumerate(self.color_presets.presets):
             row = Adw.ActionRow(
                 title=preset.name,
-                subtitle=f"{preset.values.get('white_balance_temperature', 'Auto')} K · saturation {preset.values.get('saturation', 50)}",
+                subtitle=(
+                    f"{preset.values.get('white_balance_temperature', 'Auto')} K · "
+                    f"saturation {preset.values.get('saturation', 50)}"
+                ),
             )
             apply_button = Gtk.Button(label="Apply", valign=Gtk.Align.CENTER)
             apply_button.connect(
@@ -2401,7 +2525,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
     def _apply_color_preset(self, index: int) -> None:
         preset = self.color_presets.presets[index]
 
-        def operation() -> None:
+        def operation() -> dict[str, Any]:
             values = preset.values
             if "auto_exposure" in values:
                 self.camera.set_auto_exposure(bool(values["auto_exposure"]))
@@ -2430,9 +2554,12 @@ class LinkStudioWindow(Adw.ApplicationWindow):
                     self.camera.set_control(key, int(values[key]))
             if "hdr" in values:
                 self.camera.set_feature(FEATURE_HDR, bool(values["hdr"]))
+            return self.camera.read_state()
 
-        def success(_result: Any) -> None:
+        def success(refreshed: dict[str, Any]) -> None:
             self.state.update(preset.values)
+            self.state.update(refreshed)
+            self._sync_control_widgets({**preset.values, **refreshed})
 
         self._submit(f"Applied color template “{preset.name}”", operation, on_success=success)
 
@@ -2630,7 +2757,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
     def _apply_preset(self, index: int, startup: bool = False) -> None:
         preset = self.presets.presets[index]
 
-        def operation() -> str:
+        def operation() -> tuple[str, dict[str, Any]]:
             values = preset.values
             for key in (
                 "brightness",
@@ -2692,10 +2819,24 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             mode = str(values.get("mode", "normal"))
             if mode in VIDEO_MODES:
                 self.camera.set_video_mode(mode, verify_streaming=self.preview.running)
-            return mode
+            return mode, self.camera.read_state()
 
-        def success(mode: str) -> None:
+        def success(result: tuple[str, dict[str, Any]]) -> None:
+            mode, refreshed = result
             self.state.update(preset.values)
+            self.state.update(refreshed)
+            sync_values = {**preset.values, **refreshed}
+            software = preset.values.get("software_effects")
+            if isinstance(software, dict):
+                sync_values.update(
+                    {
+                        "orientation": software.get("orientation", "identity"),
+                        "effect_mode": software.get("mode", "none"),
+                        "effect_intensity": software.get("intensity", 55),
+                        "key_tolerance": software.get("key_tolerance", 70),
+                    }
+                )
+            self._sync_control_widgets(sync_values)
             self._sync_mode_buttons(mode)
 
         message = (
@@ -2762,21 +2903,20 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         for teleprompter in tuple(self._teleprompter_windows):
             teleprompter.close()
         self.preview.processor.set_tracking_callback(None)
+        self._stop_preview_poll()
         for source_id in self._pending_sources.values():
             GLib.source_remove(source_id)
         self._pending_sources.clear()
         recorder, self.recorder = self.recorder, None
         if recorder:
             self.preview.remove_consumer(recorder.push)
-            try:
+            with suppress(Exception):
                 recorder.stop()
-            except Exception:
-                pass
         publisher, self.virtual_camera = self.virtual_camera, None
         if publisher:
             self.preview.remove_consumer(publisher.push)
             publisher.stop()
         self.preview.close()
+        self.executor.shutdown(wait=True, cancel_futures=True)
         self.camera.close()
-        self.executor.shutdown(wait=False, cancel_futures=True)
         return False

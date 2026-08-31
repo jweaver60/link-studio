@@ -2,7 +2,25 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from link_studio.preview import discover_virtual_camera_devices, parse_v4l2_formats
+from gi.repository import Gst
+
+from link_studio.preview import (
+    Frame,
+    Recorder,
+    VirtualCameraPublisher,
+    _gst_quote,
+    discover_virtual_camera_devices,
+    parse_v4l2_formats,
+)
+
+
+class _FakeSource:
+    def __init__(self):
+        self.buffers = []
+
+    def emit(self, signal, buffer):
+        self.buffers.append((signal, buffer))
+        return Gst.FlowReturn.OK
 
 
 class VirtualCameraDiscoveryTests(unittest.TestCase):
@@ -30,3 +48,28 @@ class VirtualCameraDiscoveryTests(unittest.TestCase):
             (root / "video20/name").write_text("Link Studio Virtual Camera\n")
             (device / "driver").symlink_to(driver)
             self.assertEqual(discover_virtual_camera_devices(root), ["/dev/video20"])
+
+    def test_gstreamer_values_are_quoted(self):
+        self.assertEqual(_gst_quote('/dev/video" odd\\name'), '/dev/video\\" odd\\\\name')
+
+    def test_recorded_frames_use_pipeline_clock_timestamps(self):
+        recorder = Recorder(Path("recording.mp4"), 2, 1, 30)
+        source = _FakeSource()
+        recorder.source = source
+        frame = Frame(2, 1, 6, b"abcdef", 12 * Gst.SECOND)
+
+        recorder.push(frame)
+
+        buffer = source.buffers[0][1]
+        self.assertEqual(buffer.pts, Gst.CLOCK_TIME_NONE)
+        self.assertEqual(buffer.duration, Gst.SECOND // 30)
+        self.assertEqual(buffer.extract_dup(0, buffer.get_size()), frame.data)
+
+    def test_virtual_camera_frames_also_use_live_timestamps(self):
+        publisher = VirtualCameraPublisher("/dev/video20", 2, 1, 30)
+        source = _FakeSource()
+        publisher.source = source
+
+        publisher.push(Frame(2, 1, 6, b"abcdef", 0))
+
+        self.assertEqual(source.buffers[0][1].pts, Gst.CLOCK_TIME_NONE)

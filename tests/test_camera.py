@@ -1,4 +1,5 @@
 import ctypes
+import struct
 import unittest
 
 from link_studio.camera import (
@@ -7,6 +8,7 @@ from link_studio.camera import (
     VIDIOC_QUERYCAP,
     VIDIOC_S_CTRL,
     Camera,
+    CameraError,
     _UvcXuControlQuery,
 )
 from link_studio.constants import AUDIO_MODES, STANDARD_CONTROLS, VIDEO_MODES
@@ -64,3 +66,33 @@ class CameraAbiTests(unittest.TestCase):
         self.assertTrue(camera.get_noise_cancellation())
         with self.assertRaisesRegex(ValueError, "unsupported audio mode"):
             camera.set_audio_mode("surround")
+
+    def test_invalid_xu_length_uses_the_supplied_fallback(self):
+        camera = object.__new__(Camera)
+        camera._xu_lengths = {}
+        camera._xu_query = lambda *_args: b"\x00\x00"
+
+        self.assertEqual(camera.xu_length(9, 27, fallback=2), 2)
+        with self.assertRaisesRegex(CameraError, "invalid XU length"):
+            camera.xu_length(9, 28)
+
+    def test_read_state_contains_short_firmware_payload_errors(self):
+        camera = object.__new__(Camera)
+        camera.get_control = lambda _key: 0
+        camera.read_video_mode = lambda: "normal"
+        camera.get_feature = lambda _bit: False
+        camera.get_privacy = lambda: False
+        camera.get_auto_exposure = lambda: True
+        camera.get_exposure_compensation = lambda: struct.unpack("<h", b"")[0]
+        camera.get_tracking_speed = lambda: b""[0]
+        camera.get_framing = lambda: "head"
+        camera.get_noise_cancellation = lambda: True
+        camera.get_audio_mode = lambda: "voice_focus"
+        camera.get_manual_iso = lambda: 100
+        camera.get_shutter = lambda: 1000
+        camera.get_device_information = lambda: {}
+
+        state = camera.read_state()
+
+        self.assertIn("exposure_compensation", state["unavailable"])
+        self.assertIn("tracking_speed", state["unavailable"])

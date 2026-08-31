@@ -6,6 +6,16 @@ All notable changes to Link Studio are recorded here.
 
 - Kept live palette synchronization while removing theme names from the application UI and shared
   theme data.
+- Fixed teleprompter restart and per-window styling, preset control resynchronization, anti-flicker
+  Auto, the full tracking-speed range, and frame-accurate tracking-area geometry.
+- Made local data explicitly UTF-8, contained malformed firmware responses, serialized camera
+  shutdown with worker completion, and removed unrelated development-runtime diagnostics.
+- Rotated phone-remote credentials on every start, hardened token and GStreamer input handling,
+  and changed recordings to real-time timestamps so dropped preview frames cannot cause A/V drift.
+- Reduced frame copies and idle polling, made effect caches concurrency- and file-change-aware,
+  corrected Smart Whiteboard area detection, declared OpenCV directly, strengthened Ruff, and
+  expanded regression coverage.
+- Added AppStream screenshot metadata and the desktop-entry specification version.
 
 ## 1.0.0 — 2026-08-31
 

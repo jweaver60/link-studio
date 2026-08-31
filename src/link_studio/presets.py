@@ -35,8 +35,8 @@ class PresetStore:
 
     def load(self) -> list[Preset]:
         try:
-            raw = json.loads(self.path.read_text())
-        except (OSError, json.JSONDecodeError):
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
             self.presets = []
             self.default_index = None
             return self.presets

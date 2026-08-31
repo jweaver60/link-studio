@@ -88,7 +88,6 @@ def create_support_bundle(camera: Camera, directory: Path) -> Path:
         "usb.txt": _command(["lsusb", "-d", "2e1a:"]),
         "gstreamer.txt": _command(["gst-inspect-1.0", "--version"]),
         "pipewire.txt": _command(["pactl", "info"]),
-        "orca-runtime.json": _command(["orca-ide", "status", "--json"]),
     }
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("diagnostics.json", json.dumps(report, indent=2, sort_keys=True) + "\n")

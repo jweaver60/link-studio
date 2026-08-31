@@ -163,14 +163,17 @@ class AudioNoteRecorder:
             raise MeetingError(error.message)
         markers_path = directory / "markers.json"
         markers_path.write_text(
-            json.dumps([asdict(marker) for marker in self.markers], indent=2) + "\n"
+            json.dumps([asdict(marker) for marker in self.markers], indent=2) + "\n",
+            encoding="utf-8",
         )
         metadata = {
             "created": datetime.now().astimezone().isoformat(),
             "duration_seconds": round(duration, 3),
             "audio_source": self.audio_source,
         }
-        (directory / "meeting.json").write_text(json.dumps(metadata, indent=2) + "\n")
+        (directory / "meeting.json").write_text(
+            json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
+        )
         return MeetingResult(directory, audio_path, markers_path, duration)
 
 
@@ -218,9 +221,9 @@ def transcribe_meeting(
     if completed.returncode or not transcript_path.is_file():
         reason = completed.stderr.strip() or completed.stdout.strip() or "unknown Whisper error"
         raise MeetingError(f"Transcription failed: {reason[-800:]}")
-    transcript = transcript_path.read_text(errors="replace").strip()
+    transcript = transcript_path.read_text(encoding="utf-8", errors="replace").strip()
     summary_path = result.directory / "summary.md"
-    summary_path.write_text(summarize_transcript(transcript))
+    summary_path.write_text(summarize_transcript(transcript), encoding="utf-8")
     return transcript_path, summary_path
 
 
@@ -295,7 +298,8 @@ def summarize_transcript(transcript: str, sentence_limit: int = 6) -> str:
         sentence
         for sentence in sentences
         if re.search(
-            r"\b(action|todo|to-do|need(?:s)? to|will|follow up|deadline|assign(?:ed)?|next step)\b",
+            r"\b(action|todo|to-do|need(?:s)? to|will|follow up|deadline|"
+            r"assign(?:ed)?|next step)\b",
             sentence,
             re.IGNORECASE,
         )

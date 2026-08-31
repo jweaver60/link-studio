@@ -5,6 +5,7 @@ import re
 import subprocess
 import threading
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,6 +19,10 @@ from gi.repository import GLib, Gst, GstApp
 from .effects import EffectProcessor, EffectSettings
 
 Gst.init(None)
+
+
+def _gst_quote(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def parse_v4l2_formats(output: str) -> dict[tuple[int, int], tuple[int, ...]]:
@@ -104,20 +109,14 @@ class PreviewStream:
         try:
             self._frames.put_nowait(frame)
         except queue.Full:
-            try:
+            with suppress(queue.Empty):
                 self._frames.get_nowait()
-            except queue.Empty:
-                pass
-            try:
+            with suppress(queue.Full):
                 self._frames.put_nowait(frame)
-            except queue.Full:
-                pass
 
     def _push_error(self, message: str) -> None:
-        try:
+        with suppress(queue.Full):
             self._errors.put_nowait(message)
-        except queue.Full:
-            pass
 
     def _on_sample(self, sink: GstApp.AppSink) -> Gst.FlowReturn:
         sample = sink.emit("pull-sample")
@@ -171,7 +170,7 @@ class PreviewStream:
         self.stop()
         config = self.config
         pipeline_description = (
-            f'v4l2src device="{self.device_path}" do-timestamp=true '
+            f'v4l2src device="{_gst_quote(self.device_path)}" do-timestamp=true '
             f"! image/jpeg,width={config.width},height={config.height},framerate={config.fps}/1 "
             "! queue leaky=downstream max-size-buffers=2 "
             "! jpegdec ! videoconvert ! videobalance name=preview_effects "
@@ -288,12 +287,11 @@ class Recorder:
         self.pipeline: Gst.Pipeline | None = None
         self.source: GstApp.AppSrc | None = None
         self._lock = threading.Lock()
-        self._frame_number = 0
         self._error: str | None = None
 
     def start(self) -> None:
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
-        location = str(self.output_path).replace("\\", "\\\\").replace('"', '\\"')
+        location = _gst_quote(str(self.output_path))
         if Gst.ElementFactory.find("openh264enc"):
             encoder = "openh264enc bitrate=12000000 complexity=low ! h264parse"
         elif Gst.ElementFactory.find("avenc_mpeg4"):
@@ -302,12 +300,13 @@ class Recorder:
             raise PreviewError("No GStreamer H.264 or MPEG-4 encoder is installed")
         description = f'mp4mux name=mux faststart=true ! filesink location="{location}" '
         description += (
-            "appsrc name=record_source is-live=true block=false format=time do-timestamp=false "
-            f"caps=video/x-raw,format=RGB,width={self.width},height={self.height},framerate={self.fps}/1 "
+            "appsrc name=record_source is-live=true block=false format=time do-timestamp=true "
+            "caps=video/x-raw,format=RGB,"
+            f"width={self.width},height={self.height},framerate={self.fps}/1 "
             f"! queue max-size-buffers=120 ! videoconvert ! {encoder} ! queue ! mux. "
         )
         if self.audio_source:
-            source_name = self.audio_source.replace("\\", "\\\\").replace('"', '\\"')
+            source_name = _gst_quote(self.audio_source)
             if Gst.ElementFactory.find("fdkaac"):
                 audio_encoder = "fdkaac bitrate=128000"
             elif Gst.ElementFactory.find("avenc_aac"):
@@ -331,19 +330,14 @@ class Recorder:
             raise PreviewError("The recording encoder could not be started")
         self.pipeline = pipeline
         self.source = source
-        self._frame_number = 0
 
     def push(self, frame: Frame) -> None:
         with self._lock:
             if not self.source or frame.width != self.width or frame.height != self.height:
                 return
-            buffer = Gst.Buffer.new_allocate(None, len(frame.data), None)
-            buffer.fill(0, frame.data)
+            buffer = Gst.Buffer.new_wrapped(frame.data)
             duration = Gst.SECOND // self.fps
-            buffer.pts = self._frame_number * duration
-            buffer.dts = buffer.pts
             buffer.duration = duration
-            self._frame_number += 1
             result = self.source.emit("push-buffer", buffer)
             if result != Gst.FlowReturn.OK:
                 self._error = f"recording pipeline returned {result.value_nick}"
@@ -380,7 +374,7 @@ def discover_virtual_camera_devices(sys_root: Path = Path("/sys/class/video4linu
         return devices
     for node in sorted(sys_root.glob("video*"), key=lambda path: path.name):
         try:
-            name = (node / "name").read_text().strip().casefold()
+            name = (node / "name").read_text(encoding="utf-8", errors="replace").strip().casefold()
             driver = (node / "device/driver").resolve().name.casefold()
         except OSError:
             continue
@@ -399,16 +393,17 @@ class VirtualCameraPublisher:
         self.fps = fps
         self.pipeline: Gst.Pipeline | None = None
         self.source: GstApp.AppSrc | None = None
-        self._frame_number = 0
         self._lock = threading.Lock()
 
     def start(self) -> None:
         description = (
-            "appsrc name=virtual_source is-live=true block=false format=time do-timestamp=false "
-            f"caps=video/x-raw,format=RGB,width={self.width},height={self.height},framerate={self.fps}/1 "
+            "appsrc name=virtual_source is-live=true block=false format=time do-timestamp=true "
+            "caps=video/x-raw,format=RGB,"
+            f"width={self.width},height={self.height},framerate={self.fps}/1 "
             "! queue leaky=downstream max-size-buffers=2 ! videoconvert "
-            f"! video/x-raw,format=YUY2,width={self.width},height={self.height},framerate={self.fps}/1 "
-            f'! v4l2sink sync=false device="{self.device_path}"'
+            "! video/x-raw,format=YUY2,"
+            f"width={self.width},height={self.height},framerate={self.fps}/1 "
+            f'! v4l2sink sync=false device="{_gst_quote(self.device_path)}"'
         )
         pipeline = Gst.parse_launch(description)
         if not isinstance(pipeline, Gst.Pipeline):
@@ -422,19 +417,14 @@ class VirtualCameraPublisher:
             raise PreviewError(f"Could not open virtual camera {self.device_path}")
         self.pipeline = pipeline
         self.source = source
-        self._frame_number = 0
 
     def push(self, frame: Frame) -> None:
         with self._lock:
             if not self.source or frame.width != self.width or frame.height != self.height:
                 return
-            buffer = Gst.Buffer.new_allocate(None, len(frame.data), None)
-            buffer.fill(0, frame.data)
+            buffer = Gst.Buffer.new_wrapped(frame.data)
             duration = Gst.SECOND // self.fps
-            buffer.pts = self._frame_number * duration
-            buffer.dts = buffer.pts
             buffer.duration = duration
-            self._frame_number += 1
             self.source.emit("push-buffer", buffer)
 
     def stop(self) -> None:

@@ -1,4 +1,5 @@
 [Desktop Entry]
+Version=1.0
 Name=Link Studio
 Comment=Control an Insta360 Link webcam
 Exec=link-studio
