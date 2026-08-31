@@ -17,7 +17,6 @@ def omarchy_current_dir() -> Path:
 
 @dataclass(frozen=True, slots=True)
 class Palette:
-    name: str
     mode: str
     accent: str
     selection: str
@@ -48,7 +47,7 @@ def _safe_color(data: dict[str, object], key: str, fallback: str) -> str:
     return fallback
 
 
-def load_palette(colors_path: Path, name: str = "Omarchy") -> Palette | None:
+def load_palette(colors_path: Path) -> Palette | None:
     try:
         with colors_path.open("rb") as handle:
             data = tomllib.load(handle)
@@ -56,7 +55,6 @@ def load_palette(colors_path: Path, name: str = "Omarchy") -> Palette | None:
         return None
 
     return Palette(
-        name=name,
         mode=str(data.get("mode", "dark")),
         accent=_safe_color(data, "accent", "#3584e4"),
         selection=_safe_color(data, "selection", "#1c71d8"),
@@ -76,11 +74,7 @@ def load_palette(colors_path: Path, name: str = "Omarchy") -> Palette | None:
 
 def load_current_omarchy_palette() -> Palette | None:
     current = omarchy_current_dir()
-    try:
-        theme_name = (current / "theme.name").read_text().strip()
-    except OSError:
-        theme_name = "Omarchy"
-    return load_palette(current / "theme/colors.toml", theme_name or "Omarchy")
+    return load_palette(current / "theme/colors.toml")
 
 
 def _contrast_color(hex_color: str) -> str:

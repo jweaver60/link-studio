@@ -20,11 +20,11 @@ class ThemeTests(unittest.TestCase):
                     ]
                 )
             )
-            palette = load_palette(colors, "gridiron")
+            palette = load_palette(colors)
             self.assertIsNotNone(palette)
             assert palette is not None
-            self.assertEqual(palette.name, "gridiron")
             self.assertEqual(palette.accent, "#fb4f14")
+            self.assertNotIn("name", palette.as_dict())
             css = palette_css(palette)
             self.assertIn("@define-color accent_color #fb4f14", css)
             self.assertIn("@define-color window_bg_color #14100f", css)

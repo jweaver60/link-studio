@@ -88,11 +88,10 @@ multilingual base model against a pinned SHA-256 checksum.
 
 ## Omarchy integration
 
-Link Studio watches the active Omarchy theme metadata:
+Link Studio watches the active Omarchy color palette:
 
 ```text
 ~/.local/state/omarchy/current/theme/colors.toml
-~/.local/state/omarchy/current/theme.name
 ```
 
 After `omarchy theme set …`, libadwaita light/dark mode, accent, selection, surfaces, text, popovers,

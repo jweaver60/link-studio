@@ -90,8 +90,6 @@ h1 span { color: var(--blue); }
 .slider span { display: block; width: 65%; height: 100%; background: var(--blue); box-shadow: 0 0 7px var(--blue); }
 .switch-row i { width: 25px; height: 14px; position: relative; border-radius: 10px; background: var(--blue); }
 .switch-row i::after { content: ""; position: absolute; right: 2px; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: #10131d; }
-.theme-chip { margin-top: 22px; padding: 8px; text-align: center; border: 1px solid rgba(203,166,247,.17); border-radius: 7px; color: var(--mauve); font-size: .55rem; }
-.theme-chip span { display: inline-block; width: 6px; height: 6px; margin-right: 4px; border-radius: 50%; background: var(--mauve); }
 .float-card { position: absolute; z-index: 4; padding: 10px 13px; display: flex; align-items: center; gap: 9px; border: 1px solid rgba(205,214,244,.15); border-radius: 11px; background: rgba(17,21,33,.92); box-shadow: 0 16px 40px rgba(0,0,0,.36); backdrop-filter: blur(12px); }
 .float-ai { left: 7px; bottom: 42px; }
 .float-ai b, .float-ai small { display: block; }

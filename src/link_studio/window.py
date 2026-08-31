@@ -2735,10 +2735,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         self._palette = palette
         if not hasattr(self, "window_title"):
             return
-        theme = palette.name.replace("-", " ").title() if palette else "System theme"
-        self.window_title.set_subtitle(
-            f"{self.camera.device.model} · {self.camera.device.path} · {theme}"
-        )
+        self.window_title.set_subtitle(f"{self.camera.device.model} · {self.camera.device.path}")
         if palette and self.preview.effect_settings.background_color == "#242424":
             rgba = Gdk.RGBA()
             rgba.parse(palette.background)
