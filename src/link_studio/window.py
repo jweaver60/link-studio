@@ -1741,6 +1741,14 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         self.background_image_label.set_label("None")
         self.preview.set_effects(background_image=None)
 
+    def _stop_frame_consumers(self) -> None:
+        """Detach fixed-geometry outputs before the preview dimensions can change."""
+
+        if self.record_button.get_active():
+            self.record_button.set_active(False)
+        if hasattr(self, "virtual_camera_switch") and self.virtual_camera_switch.get_active():
+            self.virtual_camera_switch.set_active(False)
+
     def _orientation_changed(self, selected: int) -> None:
         orientations = [
             "identity",
@@ -1749,10 +1757,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             "rotate_left",
             "rotate_180",
         ]
-        if self.record_button.get_active():
-            self.record_button.set_active(False)
-        if self.virtual_camera:
-            self.virtual_camera_switch.set_active(False)
+        self._stop_frame_consumers()
         self.preview.set_effects(orientation=orientations[min(selected, len(orientations) - 1)])
         if self.preview.running:
             self.preview_status.set_label(self.preview.output_label)
@@ -2110,9 +2115,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             self.fps_dropdown.set_selected(supported.index(chosen))
             self._changing_stream_controls = False
         fps = self._stream_rates[self.fps_dropdown.get_selected()]
+        self._stop_frame_consumers()
         was_running = self.preview.running
-        if self.virtual_camera:
-            self.virtual_camera_switch.set_active(False)
         if was_running:
             self.preview.stop()
         self.preview.config = PreviewConfig(width, height, fps)
@@ -2136,12 +2140,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             self._preview_poll_source = 0
 
     def _set_preview_stopped_ui(self, status: str, placeholder: str) -> None:
-        # Keep these outside the preview-toggle update guard so their handlers finalize
-        # any active recording and shut down the virtual-camera pipeline.
-        if self.record_button.get_active():
-            self.record_button.set_active(False)
-        if hasattr(self, "virtual_camera_switch") and self.virtual_camera_switch.get_active():
-            self.virtual_camera_switch.set_active(False)
+        # Keep this outside the preview-toggle update guard so the consumer handlers run.
+        self._stop_frame_consumers()
         self.latest_frame = None
         self.picture.set_paintable(None)
         self.preview_placeholder.set_visible(True)
@@ -2812,6 +2812,15 @@ class LinkStudioWindow(Adw.ApplicationWindow):
 
     def _apply_preset(self, index: int, startup: bool = False) -> None:
         preset = self.presets.presets[index]
+        software = preset.values.get("software_effects")
+        if isinstance(software, dict):
+            current_orientation = self.preview.effect_settings.orientation
+            target_orientation = str(software.get("orientation", current_orientation))
+            portrait_orientations = {"rotate_right", "rotate_left"}
+            if (current_orientation in portrait_orientations) != (
+                target_orientation in portrait_orientations
+            ):
+                self._stop_frame_consumers()
 
         def operation() -> tuple[str, dict[str, Any]]:
             values = preset.values
@@ -2862,9 +2871,9 @@ class LinkStudioWindow(Adw.ApplicationWindow):
                 self.camera.set_audio_mode(str(values["audio_mode"]))
             elif "noise_cancellation" in values:
                 self.camera.set_noise_cancellation(bool(values["noise_cancellation"]))
-            software = values.get("software_effects")
-            if isinstance(software, dict):
-                restored = dict(software)
+            stored_effects = values.get("software_effects")
+            if isinstance(stored_effects, dict):
+                restored = dict(stored_effects)
                 if isinstance(restored.get("tracking_area"), list):
                     restored["tracking_area"] = tuple(restored["tracking_area"])
                 if isinstance(restored.get("pause_areas"), list):

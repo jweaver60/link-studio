@@ -22,6 +22,8 @@ All notable changes to Link Studio are recorded here.
 - Finalized recordings and stopped virtual-camera output on every preview failure, fully reset UI
   state after rejected stream formats, and made shutdown cancellation authoritative across firmware
   readers and queued main-thread completions.
+- Stopped fixed-geometry recording and virtual-camera consumers before stream-format changes or
+  portrait/landscape preset restores, preventing silently truncated or frozen outputs.
 
 ## 1.0.0 — 2026-08-31
 

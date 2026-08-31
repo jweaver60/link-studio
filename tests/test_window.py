@@ -239,6 +239,51 @@ class WindowRegressionTests(unittest.TestCase):
         self.assertEqual(settings.pause_areas, ((0.2, 0.3, 0.1, 0.1),))
         effects_sync.assert_called_once_with(settings)
 
+    def test_portrait_preset_stops_fixed_geometry_consumers_before_effect_restore(self):
+        events = []
+        preview = _FakePreview()
+        original_set_effects = preview.set_effects
+
+        def set_effects(**changes):
+            events.append("effects")
+            return original_set_effects(**changes)
+
+        preview.set_effects = set_effects
+        window = SimpleNamespace(
+            presets=SimpleNamespace(
+                presets=[
+                    Preset(
+                        "Portrait",
+                        {
+                            "mode": "normal",
+                            "software_effects": {"orientation": "rotate_right"},
+                        },
+                    )
+                ]
+            ),
+            camera=_FakeCamera({"mode": "normal"}),
+            preview=preview,
+            state={},
+            record_button=_CallbackToggle(
+                True, lambda active: events.append("record-stopped") if not active else None
+            ),
+            virtual_camera_switch=_CallbackToggle(
+                True, lambda active: events.append("virtual-stopped") if not active else None
+            ),
+            _submit=_immediate_submit,
+            _sync_control_widgets=Mock(),
+            _sync_software_effect_widgets=Mock(),
+            _sync_mode_buttons=Mock(),
+        )
+        window._stop_frame_consumers = lambda: LinkStudioWindow._stop_frame_consumers(window)
+
+        LinkStudioWindow._apply_preset(window, 0)
+
+        self.assertEqual(events, ["record-stopped", "virtual-stopped", "effects"])
+        self.assertFalse(window.record_button.get_active())
+        self.assertFalse(window.virtual_camera_switch.get_active())
+        self.assertEqual(preview.effect_settings.orientation, "rotate_right")
+
     def test_software_effect_sync_updates_regions_colors_and_image(self):
         background = Mock()
         key = Mock()
@@ -301,6 +346,7 @@ class WindowRegressionTests(unittest.TestCase):
             lambda active: teardown_events.append(("virtual", active, window._updating)),
         )
         window.preview_toggle = _CallbackToggle(True)
+        window._stop_frame_consumers = lambda: LinkStudioWindow._stop_frame_consumers(window)
         window._set_preview_stopped_ui = lambda status, placeholder: (
             LinkStudioWindow._set_preview_stopped_ui(window, status, placeholder)
         )
@@ -341,14 +387,58 @@ class WindowRegressionTests(unittest.TestCase):
             preview=preview,
             _toast=Mock(),
             _stop_preview_poll=Mock(),
+            _stop_frame_consumers=Mock(),
             _set_preview_stopped_ui=stopped_ui,
         )
 
         LinkStudioWindow._stream_config_changed(window)
 
         preview.stop.assert_called_once_with()
+        window._stop_frame_consumers.assert_called_once_with()
         window._stop_preview_poll.assert_called_once_with()
         stopped_ui.assert_called_once_with("Ready", "Preview is off")
+
+    def test_stream_format_change_stops_consumers_before_pipeline_restart(self):
+        events = []
+        preview = SimpleNamespace(
+            running=True,
+            config=None,
+            output_label="3840x2160 · 30 fps",
+            stop=lambda: events.append("preview-stopped"),
+            start=lambda: events.append("preview-started"),
+        )
+        window = SimpleNamespace(
+            _changing_stream_controls=False,
+            _stream_resolutions=[(3840, 2160)],
+            _stream_rates=[30],
+            _all_stream_rates=[30],
+            resolution_dropdown=_FakeDropDown(),
+            fps_dropdown=_FakeDropDown(),
+            capture_formats={(3840, 2160): (30,)},
+            preview=preview,
+            record_button=_CallbackToggle(
+                True, lambda active: events.append("record-stopped") if not active else None
+            ),
+            virtual_camera_switch=_CallbackToggle(
+                True, lambda active: events.append("virtual-stopped") if not active else None
+            ),
+            preview_status=Mock(),
+            compact_status=Mock(),
+            _toast=Mock(),
+            _stop_preview_poll=Mock(),
+            _set_preview_stopped_ui=Mock(),
+        )
+        window._stop_frame_consumers = lambda: LinkStudioWindow._stop_frame_consumers(window)
+
+        LinkStudioWindow._stream_config_changed(window)
+
+        self.assertEqual(
+            events,
+            ["record-stopped", "virtual-stopped", "preview-stopped", "preview-started"],
+        )
+        self.assertFalse(window.record_button.get_active())
+        self.assertFalse(window.virtual_camera_switch.get_active())
+        window.preview_status.set_label.assert_called_once_with(preview.output_label)
 
     def test_scheduled_job_completion_is_ignored_after_window_closes(self):
         class ImmediateFuture:
