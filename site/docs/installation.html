@@ -15,14 +15,13 @@
       <article class="docs-content">
         <p class="eyebrow">Get started</p><h1>Install on<br><span>Omarchy or Arch.</span></h1>
         <p class="docs-lede">Link Studio installs for one user without changing Hyprland or Omarchy configuration. Optional helpers add a virtual camera and offline transcription only when requested.</p>
-        <div class="callout warning"><strong>Private preview</strong><p>The AUR recipe is complete and tested locally, but AUR publication waits for a publicly downloadable source release. The GitHub repository remains private for now.</p></div>
-        <h2 id="aur">AUR launch</h2>
-        <p>Once the upstream source release is public, install the stable package with your preferred AUR helper:</p>
+        <h2 id="aur">Install from the AUR</h2>
+        <p>Install the stable package with your preferred AUR helper:</p>
         <div class="code-block">yay -S link-studio</div>
         <p>The package depends on the normal Arch GTK, GStreamer, PipeWire, OpenCV, and Python stack plus <span class="inline-code">python-mediapipe</span> from the AUR.</p>
-        <h2 id="source">Private source install</h2>
-        <p>Repository collaborators can clone over SSH and run the user installer:</p>
-        <div class="code-block">git clone git@github.com:jweaver60/link-studio.git
+        <h2 id="source">Install from source</h2>
+        <p>Clone the public repository and run the user installer:</p>
+        <div class="code-block">git clone https://github.com/jweaver60/link-studio.git
 cd link-studio
 ./scripts/install-user</div>
         <p>The installer anchors its environment to <span class="inline-code">/usr/bin/python</span>, preserving Omarchy's system GTK bindings while installing Link Studio's Python dependencies.</p>

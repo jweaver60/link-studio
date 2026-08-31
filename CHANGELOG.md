@@ -2,7 +2,7 @@
 
 All notable changes to Link Studio are recorded here.
 
-## Unreleased
+## 1.0.1 — 2026-08-31
 
 - Kept live palette synchronization while removing theme names from the application UI and shared
   theme data.

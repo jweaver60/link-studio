@@ -12,8 +12,8 @@ vendor-only operations that cannot safely be cloned are identified in the
 [parity contract](docs/PARITY.md); they are external protocol or service boundaries, not unfinished
 buttons hidden in the application.
 
-Project documentation lives at <https://jweaver60.github.io/link-studio/>. The canonical source
-repository is `jweaver60/link-studio` and is private during the pre-AUR review period.
+Project documentation lives at <https://jweaver60.github.io/link-studio/>. The canonical public
+source repository is [`jweaver60/link-studio`](https://github.com/jweaver60/link-studio).
 
 ## Features
 
@@ -71,9 +71,8 @@ This installs an isolated environment below `${XDG_DATA_HOME:-~/.local/share}/li
 `link-studio` in `${XDG_BIN_HOME:-~/.local/bin}`, and installs desktop/AppStream entries. It neither
 requires root nor edits Omarchy configuration.
 
-The stable `link-studio` AUR recipe is staged under `packaging/aur`. It will be submitted when the
-upstream release archive is publicly downloadable; publishing a package whose source requires
-GitHub credentials would produce a broken AUR installation.
+Install the stable Arch package from the AUR with `yay -S link-studio`. Its maintained recipe also
+lives under `packaging/aur`, and every release source is publicly downloadable from GitHub.
 
 Optional local integrations:
 

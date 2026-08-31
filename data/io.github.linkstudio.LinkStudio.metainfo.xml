@@ -31,6 +31,11 @@
   </screenshots>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.0.1" date="2026-08-31">
+      <description>
+        <p>Correctness, concurrency, privacy, preview-color, and global-shortcut fixes.</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-08-31">
       <description>
         <p>First production release, hardware-tested with Insta360 Link 2 on Omarchy.</p>

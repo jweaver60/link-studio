@@ -1,8 +1,8 @@
 name: Deploy documentation
 
 on:
-  # Private-repository Pages is unavailable on the account's current plan.
-  # Restore the push trigger when Pages is enabled for this repository.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
