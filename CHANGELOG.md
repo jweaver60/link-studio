@@ -16,6 +16,9 @@ All notable changes to Link Studio are recorded here.
   corrected Smart Whiteboard area detection, declared OpenCV directly, strengthened Ruff, and
   expanded regression coverage.
 - Added AppStream screenshot metadata and the desktop-entry specification version.
+- Made camera teardown immediately responsive while preserving descriptor safety, restored every
+  preset-only effect/region control, retained live filters across pipeline rebuilds, retired stale
+  frames after stream failures, and honored relocated XDG Documents directories.
 
 ## 1.0.0 — 2026-08-31
 

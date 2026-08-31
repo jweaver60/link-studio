@@ -26,6 +26,10 @@ class CameraError(RuntimeError):
     """A device or control operation failed."""
 
 
+class CameraOperationCancelled(CameraError):
+    """A camera operation was cooperatively cancelled during application shutdown."""
+
+
 @dataclass(frozen=True, slots=True)
 class CameraDevice:
     path: str
@@ -207,6 +211,7 @@ class Camera:
         self._xu_lengths: dict[tuple[int, int], int] = {}
         self._last_mode = "unknown"
         self._last_mode_time = 0.0
+        self._cancel_operations = threading.Event()
 
     def __enter__(self) -> Self:
         return self
@@ -220,7 +225,19 @@ class Camera:
                 os.close(self._fd)
                 self._fd = -1
 
+    def cancel_pending_operations(self) -> None:
+        self._cancel_operations.set()
+
+    def _check_cancelled(self) -> None:
+        if self._cancel_operations.is_set():
+            raise CameraOperationCancelled("camera operation cancelled during shutdown")
+
+    def _wait_or_cancel(self, seconds: float) -> None:
+        if self._cancel_operations.wait(seconds):
+            self._check_cancelled()
+
     def _ioctl(self, request: int, value: ctypes.Structure) -> None:
+        self._check_cancelled()
         if self._fd < 0:
             raise CameraError("camera is closed")
         ctypes.set_errno(0)
@@ -346,6 +363,7 @@ class Camera:
 
         if mode not in VIDEO_MODES:
             raise ValueError(f"unsupported video mode: {mode}")
+        self._check_cancelled()
         mode_id, flag, _label = VIDEO_MODES[mode]
         self._last_mode = mode
         self._last_mode_time = time.monotonic()
@@ -357,13 +375,14 @@ class Camera:
         if verify_streaming:
             ready_deadline = time.monotonic() + 4.0
             while time.monotonic() < ready_deadline:
+                self._check_cancelled()
                 raw = self.xu_get(XU_FEATURE_UNIT, XU_VIDEO_MODE, 61)
                 if raw and raw[0] != 0xFF:
                     break
-                time.sleep(0.3)
+                self._wait_or_cancel(0.3)
 
         self._write_video_mode_buffer(0, 0)
-        time.sleep(0.6)
+        self._wait_or_cancel(0.6)
         self._write_video_mode_buffer(mode_id, flag)
 
         if not verify_streaming:
@@ -372,7 +391,7 @@ class Camera:
         deadline = time.monotonic() + 9.0
         reassert_at = time.monotonic() + 2.5
         while time.monotonic() < deadline:
-            time.sleep(0.4)
+            self._wait_or_cancel(0.4)
             raw = self.xu_get(XU_FEATURE_UNIT, XU_VIDEO_MODE, 61)
             current = raw[0] if raw else None
             if current == mode_id:

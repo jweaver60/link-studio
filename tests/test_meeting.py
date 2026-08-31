@@ -4,10 +4,24 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from link_studio.meeting import MeetingResult, summarize_transcript, transcribe_meeting
+from link_studio.meeting import (
+    MeetingResult,
+    default_meeting_dir,
+    summarize_transcript,
+    transcribe_meeting,
+)
 
 
 class MeetingSummaryTests(unittest.TestCase):
+    def test_meeting_directory_uses_the_configured_xdg_documents_location(self):
+        with patch(
+            "link_studio.meeting.GLib.get_user_special_dir", return_value="/media/archive/Documents"
+        ):
+            self.assertEqual(
+                default_meeting_dir(),
+                Path("/media/archive/Documents/Link Studio/Meetings"),
+            )
+
     def test_summary_preserves_key_points_and_action_items(self):
         transcript = (
             "The launch is scheduled for Friday. "

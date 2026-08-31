@@ -142,6 +142,23 @@ class EffectProcessorTests(unittest.TestCase):
                 self.assertEqual(len(result[3]), len(data))
                 self.assertEqual(result[4], 123)
 
+    def test_active_effects_always_receive_a_writable_contiguous_frame(self):
+        processor = EffectProcessor()
+        processor._runtime = (cv2, None, np)
+        processor.update(mode="green_screen")
+        observed = []
+
+        def apply(image, _settings):
+            observed.append((image.flags.writeable, image.flags.c_contiguous))
+            image[0, 0] = (1, 2, 3)
+            return image
+
+        processor._apply_green_screen = apply
+        result = processor.process(2, 2, 6, bytes(12), 5)
+
+        self.assertEqual(observed, [(True, True)])
+        self.assertEqual(result[3][:3], b"\x01\x02\x03")
+
 
 if __name__ == "__main__":
     unittest.main()

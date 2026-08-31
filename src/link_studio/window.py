@@ -44,7 +44,7 @@ from .constants import (
     VIDEO_MODES,
 )
 from .diagnostics import create_support_bundle
-from .effects import Rect, TrackingTarget
+from .effects import EffectSettings, Rect, TrackingTarget
 from .geometry import contained_rect, frame_region_from_drag
 from .meeting import (
     AudioNoteRecorder,
@@ -97,6 +97,25 @@ def control_dropdown_index(key: str, value: object) -> int | None:
         return choices.index(value)
     except ValueError:
         return None
+
+
+def _drain_camera_executor(executor: concurrent.futures.ThreadPoolExecutor, camera: Camera) -> None:
+    executor.shutdown(wait=True, cancel_futures=True)
+    camera.close()
+
+
+def _start_camera_drain(
+    executor: concurrent.futures.ThreadPoolExecutor, camera: Camera
+) -> threading.Thread:
+    executor.shutdown(wait=False, cancel_futures=True)
+    thread = threading.Thread(
+        target=_drain_camera_executor,
+        args=(executor, camera),
+        name="link-camera-shutdown",
+        daemon=False,
+    )
+    thread.start()
+    return thread
 
 
 def _videos_dir() -> Path:
@@ -157,6 +176,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         self.executor = concurrent.futures.ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="link-camera"
         )
+        self._camera_shutdown_thread: threading.Thread | None = None
         self._closed = False
         self._updating = False
         self._pending_sources: dict[str, int] = {}
@@ -553,6 +573,25 @@ class LinkStudioWindow(Adw.ApplicationWindow):
                     self.iso_row.set_sensitive(not enabled)
                 if hasattr(self, "shutter_row"):
                     self.shutter_row.set_sensitive(not enabled)
+        finally:
+            self._updating = previous_updating
+
+    def _sync_software_effect_widgets(self, settings: EffectSettings) -> None:
+        previous_updating = self._updating
+        self._updating = True
+        try:
+            background = Gdk.RGBA()
+            if background.parse(settings.background_color):
+                self.background_color_button.set_rgba(background)
+            key = Gdk.RGBA()
+            if key.parse(settings.key_color):
+                self.key_color_button.set_rgba(key)
+            self.background_image_label.set_label(
+                Path(settings.background_image).name if settings.background_image else "None"
+            )
+            self._tracking_area = settings.tracking_area
+            self._pause_areas = list(settings.pause_areas)
+            self.region_overlay.queue_draw()
         finally:
             self._updating = previous_updating
 
@@ -1669,10 +1708,12 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         )
 
     def _background_color_changed(self, button: Gtk.ColorDialogButton) -> None:
-        self.preview.set_effects(background_color=self._rgba_hex(button.get_rgba()))
+        if not self._updating:
+            self.preview.set_effects(background_color=self._rgba_hex(button.get_rgba()))
 
     def _key_color_changed(self, button: Gtk.ColorDialogButton) -> None:
-        self.preview.set_effects(key_color=self._rgba_hex(button.get_rgba()))
+        if not self._updating:
+            self.preview.set_effects(key_color=self._rgba_hex(button.get_rgba()))
 
     def _choose_background_image(self) -> None:
         dialog = Gtk.FileDialog(title="Choose a background image", modal=True)
@@ -2049,13 +2090,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
                 self.virtual_camera_switch.set_active(False)
             self._stop_preview_poll()
             self.preview.stop()
-            self.latest_frame = None
-            self.picture.set_paintable(None)
-            self.preview_placeholder.set_visible(True)
-            self.preview_placeholder_label.set_label("Preview is off")
-            self.preview_status.set_label("Ready")
-            self.compact_status.set_label("Ready")
-            button.set_icon_name("media-playback-start-symbolic")
+            self._set_preview_stopped_ui("Ready", "Preview is off")
 
     def _stream_config_changed(self, *_args: object) -> None:
         if not hasattr(self, "preview") or self._changing_stream_controls:
@@ -2108,6 +2143,19 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             GLib.source_remove(self._preview_poll_source)
             self._preview_poll_source = 0
 
+    def _set_preview_stopped_ui(self, status: str, placeholder: str) -> None:
+        self.latest_frame = None
+        self.picture.set_paintable(None)
+        self.preview_placeholder.set_visible(True)
+        self.preview_placeholder_label.set_label(placeholder)
+        self.preview_status.set_label(status)
+        self.compact_status.set_label(status)
+        previous_updating = self._updating
+        self._updating = True
+        self.preview_toggle.set_active(False)
+        self.preview_toggle.set_icon_name("media-playback-start-symbolic")
+        self._updating = previous_updating
+
     def _poll_preview(self) -> bool:
         if self._closed:
             self._preview_poll_source = 0
@@ -2115,6 +2163,14 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         error = self.preview.take_error()
         if error:
             self._toast(f"Camera stream: {error}")
+        if not self.preview.running:
+            self.preview.stop()
+            self._set_preview_stopped_ui(
+                "Stream error" if error else "Stream ended",
+                "Preview stopped unexpectedly",
+            )
+            self._preview_poll_source = 0
+            return False
         frame = self.preview.take_latest()
         if frame:
             self.latest_frame = frame
@@ -2127,9 +2183,6 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             )
             self.picture.set_paintable(texture)
             self.preview_placeholder.set_visible(False)
-        if not self.preview.running and frame is None:
-            self._preview_poll_source = 0
-            return False
         return True
 
     def _mode_toggled(self, button: Gtk.ToggleButton, mode: str) -> None:
@@ -2313,6 +2366,9 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         future = self.executor.submit(operation)
 
         def completed(done: concurrent.futures.Future[Any]) -> None:
+            if self._closed:
+                return
+
             def main_thread() -> bool:
                 self._job_finished()
                 try:
@@ -2351,7 +2407,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
 
     def take_screenshot(self) -> None:
         frame = self.latest_frame
-        if frame is None:
+        if frame is None or not self.preview.running:
             self._toast("Start the preview before taking a screenshot")
             return
         directory = self.storage_settings.screenshot_directory or (_pictures_dir() / "Link Studio")
@@ -2836,6 +2892,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
                         "key_tolerance": software.get("key_tolerance", 70),
                     }
                 )
+                self._sync_software_effect_widgets(self.preview.effect_settings)
             self._sync_control_widgets(sync_values)
             self._sync_mode_buttons(mode)
 
@@ -2891,6 +2948,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
 
     def _on_close_request(self, *_args: object) -> bool:
         self._closed = True
+        self.camera.cancel_pending_operations()
         self.remote.stop()
         if self._ai_recording_timer:
             GLib.source_remove(self._ai_recording_timer)
@@ -2917,6 +2975,5 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             self.preview.remove_consumer(publisher.push)
             publisher.stop()
         self.preview.close()
-        self.executor.shutdown(wait=True, cancel_futures=True)
-        self.camera.close()
+        self._camera_shutdown_thread = _start_camera_drain(self.executor, self.camera)
         return False

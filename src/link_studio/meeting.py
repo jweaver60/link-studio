@@ -15,7 +15,8 @@ from pathlib import Path
 import gi
 
 gi.require_version("Gst", "1.0")
-from gi.repository import Gst
+gi.require_version("GLib", "2.0")
+from gi.repository import GLib, Gst
 
 Gst.init(None)
 
@@ -25,7 +26,8 @@ class MeetingError(RuntimeError):
 
 
 def default_meeting_dir() -> Path:
-    documents = Path(os.environ.get("XDG_DOCUMENTS_DIR", Path.home() / "Documents"))
+    value = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOCUMENTS)
+    documents = Path(value) if value else Path.home() / "Documents"
     return documents / "Link Studio" / "Meetings"
 
 

@@ -6,6 +6,7 @@ from gi.repository import Gst
 
 from link_studio.preview import (
     Frame,
+    PreviewStream,
     Recorder,
     VirtualCameraPublisher,
     _gst_quote,
@@ -21,6 +22,14 @@ class _FakeSource:
     def emit(self, signal, buffer):
         self.buffers.append((signal, buffer))
         return Gst.FlowReturn.OK
+
+
+class _FakeEffects:
+    def __init__(self):
+        self.properties = {}
+
+    def set_property(self, name, value):
+        self.properties[name] = value
 
 
 class VirtualCameraDiscoveryTests(unittest.TestCase):
@@ -73,3 +82,22 @@ class VirtualCameraDiscoveryTests(unittest.TestCase):
         publisher.push(Frame(2, 1, 6, b"abcdef", 0))
 
         self.assertEqual(source.buffers[0][1].pts, Gst.CLOCK_TIME_NONE)
+
+    def test_live_filter_is_reapplied_to_each_new_pipeline_element(self):
+        preview = PreviewStream("/dev/video0")
+        preview.set_filter("punch")
+        first = _FakeEffects()
+        second = _FakeEffects()
+
+        preview._bind_effects(first)
+        preview._bind_effects(second)
+
+        expected = {
+            "brightness": 0.0,
+            "saturation": 1.22,
+            "contrast": 1.14,
+            "hue": 1.0,
+        }
+        self.assertEqual(preview.filter_name, "punch")
+        self.assertEqual(first.properties, expected)
+        self.assertEqual(second.properties, expected)

@@ -507,8 +507,8 @@ class EffectProcessor:
         cv2, _mp, np = self._load_runtime()
         rows = np.frombuffer(data, dtype=np.uint8).reshape(height, stride)
         image = rows[:, : width * 3].reshape(height, width, 3)
-        if not image.flags.c_contiguous:
-            image = np.ascontiguousarray(image)
+        if not image.flags.c_contiguous or not image.flags.writeable:
+            image = np.array(image, copy=True, order="C")
         self._frame_number += 1
 
         faces: list[list[tuple[float, float]]] = []

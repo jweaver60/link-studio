@@ -94,6 +94,7 @@ class PreviewStream:
         self._consumers: list[Callable[[Frame], None]] = []
         self._consumer_lock = threading.Lock()
         self.running = False
+        self._filter_name = "none"
 
     def add_consumer(self, consumer: Callable[[Frame], None]) -> None:
         with self._consumer_lock:
@@ -197,7 +198,7 @@ class PreviewStream:
             raise PreviewError("The camera stream could not be started")
         self.pipeline = pipeline
         self.appsink = sink
-        self.effects = pipeline.get_by_name("preview_effects")
+        self._bind_effects(pipeline.get_by_name("preview_effects"))
         self.processor.reset_analysis()
         self.running = True
 
@@ -230,19 +231,39 @@ class PreviewStream:
         except queue.Empty:
             return None
 
-    def set_filter(self, name: str) -> None:
+    @staticmethod
+    def _filter_values(name: str) -> tuple[float, float, float, float]:
         presets = {
             "none": (0.0, 1.0, 1.0, 1.0),
             "mono": (0.0, 0.0, 1.02, 1.0),
             "punch": (0.0, 1.22, 1.14, 1.0),
             "soft": (0.03, 0.90, 0.90, 1.0),
         }
-        brightness, saturation, contrast, hue = presets[name]
+        try:
+            return presets[name]
+        except KeyError as exc:
+            raise ValueError(f"unsupported live filter: {name}") from exc
+
+    def _bind_effects(self, effects: Gst.Element | None) -> None:
+        self.effects = effects
+        self._apply_filter()
+
+    def _apply_filter(self) -> None:
+        brightness, saturation, contrast, hue = self._filter_values(self._filter_name)
         if self.effects:
             self.effects.set_property("brightness", brightness)
             self.effects.set_property("saturation", saturation)
             self.effects.set_property("contrast", contrast)
             self.effects.set_property("hue", hue)
+
+    def set_filter(self, name: str) -> None:
+        self._filter_values(name)
+        self._filter_name = name
+        self._apply_filter()
+
+    @property
+    def filter_name(self) -> str:
+        return self._filter_name
 
     @property
     def effect_settings(self) -> EffectSettings:

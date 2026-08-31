@@ -1,5 +1,6 @@
 import ctypes
 import struct
+import threading
 import unittest
 
 from link_studio.camera import (
@@ -9,6 +10,7 @@ from link_studio.camera import (
     VIDIOC_S_CTRL,
     Camera,
     CameraError,
+    CameraOperationCancelled,
     _UvcXuControlQuery,
 )
 from link_studio.constants import AUDIO_MODES, STANDARD_CONTROLS, VIDEO_MODES
@@ -96,3 +98,33 @@ class CameraAbiTests(unittest.TestCase):
 
         self.assertIn("exposure_compensation", state["unavailable"])
         self.assertIn("tracking_speed", state["unavailable"])
+
+    def test_video_mode_waits_are_cooperatively_cancelled(self):
+        camera = object.__new__(Camera)
+        camera._cancel_operations = threading.Event()
+        camera._last_mode = "unknown"
+        camera._last_mode_time = 0.0
+        entered_wait = threading.Event()
+        errors = []
+
+        def read_transition(*_args):
+            entered_wait.set()
+            return b"\xff"
+
+        camera.xu_get = read_transition
+
+        def change_mode():
+            try:
+                camera.set_video_mode("tracking", verify_streaming=True)
+            except Exception as exc:
+                errors.append(exc)
+
+        worker = threading.Thread(target=change_mode)
+        worker.start()
+        self.assertTrue(entered_wait.wait(0.5))
+        camera.cancel_pending_operations()
+        worker.join(0.5)
+
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(len(errors), 1)
+        self.assertIsInstance(errors[0], CameraOperationCancelled)
