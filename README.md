@@ -70,8 +70,17 @@ This installs an isolated environment below `${XDG_DATA_HOME:-~/.local/share}/li
 `link-studio` in `${XDG_BIN_HOME:-~/.local/bin}`, and installs desktop/AppStream entries. It does
 not require root or edit desktop configuration.
 
-Install the stable Arch package from the AUR with `yay -S link-studio`. Its maintained recipe also
-lives under `packaging/aur`, and every release source is publicly downloadable from GitHub.
+The maintained Arch package recipe lives under `packaging/aur`. New AUR account registration is
+currently closed upstream, so its initial AUR submission is pending. Build the same package locally
+in the meantime:
+
+```bash
+yay -S python-mediapipe
+cd packaging/aur
+makepkg -si
+```
+
+Every package source is publicly downloadable from the GitHub releases.
 
 Optional local integrations:
 

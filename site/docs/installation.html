@@ -42,12 +42,20 @@
           <article class="docs-content">
             <p class="page-label">Getting started</p>
             <h1>Installation</h1>
-            <p class="page-description">Install the maintained Arch package from the AUR, or use the repository installer for a per-user source installation.</p>
+            <p class="page-description">Build the maintained Arch package locally, or use the repository installer for a per-user source installation.</p>
 
-            <h2 id="aur">AUR package</h2>
-            <p>Install Link Studio with your preferred AUR helper:</p>
-            <div class="code-block">yay -S link-studio</div>
-            <p>The package installs the application, desktop entry, AppStream metadata, bundled MediaPipe models, and setup helpers. <code>python-mediapipe</code> is also sourced from the AUR; the remaining runtime dependencies come from the official Arch repositories.</p>
+            <h2 id="arch-package">Arch package</h2>
+            <div class="callout warning">
+              <strong>AUR publication is pending</strong>
+              <p>New AUR account registration is temporarily closed by Arch. The package recipe is complete and will be submitted when registration reopens.</p>
+            </div>
+            <p>Until then, build and install the same package definition directly from the repository:</p>
+            <div class="code-block">git clone https://github.com/jweaver60/link-studio.git
+cd link-studio
+yay -S python-mediapipe
+cd packaging/aur
+makepkg -si</div>
+            <p>The package installs the application, desktop entry, AppStream metadata, bundled MediaPipe models, and setup helpers. <code>python-mediapipe</code> is sourced from the AUR; the remaining runtime dependencies come from the official Arch repositories.</p>
 
             <h2 id="source">Install from source</h2>
             <p>Clone the public repository and run the per-user installer:</p>
@@ -81,7 +89,7 @@ link-studio --diagnose</div>
             <nav class="page-nav" aria-label="Previous and next pages"><a href="../">← Introduction</a><a href="./">Quick start →</a></nav>
             <p class="page-footer">Documentation for Link Studio 1.0.2 · Updated August 2026</p>
           </article>
-          <aside class="page-toc" aria-label="On this page"><h2>On this page</h2><a href="#aur">AUR package</a><a href="#source">Install from source</a><a href="#requirements">Native requirements</a><a href="#optional">Optional components</a><a href="#verify">Verify the installation</a></aside>
+          <aside class="page-toc" aria-label="On this page"><h2>On this page</h2><a href="#arch-package">Arch package</a><a href="#source">Install from source</a><a href="#requirements">Native requirements</a><a href="#optional">Optional components</a><a href="#verify">Verify the installation</a></aside>
         </div>
       </main>
     </div>
