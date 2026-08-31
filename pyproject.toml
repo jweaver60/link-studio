@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "link-studio"
-version = "1.0.1"
+version = "1.0.2"
 description = "Native Linux controller for Insta360 Link webcams"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 authors = [{ name = "Link Studio contributors" }]
-keywords = ["insta360", "webcam", "uvc", "v4l2", "gtk", "omarchy"]
+keywords = ["insta360", "webcam", "uvc", "v4l2", "gtk", "arch-linux"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: X11 Applications :: GTK",

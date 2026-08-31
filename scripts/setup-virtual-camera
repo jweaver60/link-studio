@@ -1,12 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if ! command -v omarchy >/dev/null 2>&1; then
-  printf 'This helper expects Omarchy. Install v4l2loopback-dkms and v4l2loopback-utils manually.\n' >&2
+if ! command -v pacman >/dev/null 2>&1; then
+  printf 'Install v4l2loopback-dkms, v4l2loopback-utils, and your kernel headers, then run this helper again.\n' >&2
   exit 1
 fi
 
-omarchy pkg add v4l2loopback-dkms v4l2loopback-utils linux-headers
+kernel_package=$(pacman -Qoq "/usr/lib/modules/$(uname -r)/vmlinuz" 2>/dev/null || true)
+packages=(v4l2loopback-dkms v4l2loopback-utils)
+if [[ -n "$kernel_package" ]]; then
+  packages+=("${kernel_package}-headers")
+fi
+
+printf 'Installing the Arch packages required for a virtual camera (sudo may ask for your password).\n'
+sudo pacman -S --needed "${packages[@]}"
+
+if [[ ! -e "/usr/lib/modules/$(uname -r)/build" ]]; then
+  printf 'Kernel headers for %s are not installed. Install the matching headers package and run this helper again.\n' "$(uname -r)" >&2
+  exit 1
+fi
 
 if lsmod | grep -q '^v4l2loopback'; then
   printf 'v4l2loopback is already loaded. Existing devices:\n'

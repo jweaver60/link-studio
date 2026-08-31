@@ -8,8 +8,9 @@ MODEL_URL='https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.b
 MODEL_SHA256='60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe'
 
 if ! command -v whisper-cli >/dev/null 2>&1 && ! command -v whisper-cpp >/dev/null 2>&1; then
-  if command -v omarchy >/dev/null 2>&1; then
-    omarchy pkg add whisper-cpp
+  if command -v pacman >/dev/null 2>&1; then
+    printf 'Installing whisper-cpp from the Arch repositories (sudo may ask for your password).\n'
+    sudo pacman -S --needed whisper-cpp
   else
     printf 'Install whisper.cpp with your distribution package manager, then run this helper again.\n' >&2
     exit 1

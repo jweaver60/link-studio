@@ -1,41 +1,93 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#101019">
-    <meta name="description" content="Documentation for Link Studio, the native Linux controller for Insta360 Link webcams.">
-    <meta property="og:title" content="Documentation · Link Studio"><meta property="og:description" content="Install, configure, and use Insta360 Link webcams on Linux."><meta property="og:type" content="website"><meta property="og:url" content="https://jweaver60.github.io/link-studio/docs/">
-    <meta name="twitter:card" content="summary"><meta name="twitter:title" content="Documentation · Link Studio"><meta name="twitter:description" content="Install, configure, and use Insta360 Link webcams on Linux.">
-    <title>Documentation · Link Studio</title>
-    <link rel="stylesheet" href="../assets/styles.css"><link rel="stylesheet" href="../assets/docs.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Quick start guide for Link Studio on Linux.">
+    <meta property="og:title" content="Quick start · Link Studio">
+    <meta property="og:description" content="Connect a webcam, start preview, and find the main Link Studio controls.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://jweaver60.github.io/link-studio/docs/">
+    <title>Quick start · Link Studio</title>
+    <link rel="stylesheet" href="../assets/styles.css">
+    <script src="../assets/site.js" defer></script>
   </head>
   <body>
-    <a class="skip-link" href="#docs-main">Skip to content</a>
-    <header class="site-header docs-header"><a class="brand" href="../"><span class="brand-mark" aria-hidden="true"><span></span></span><span>Link Studio</span></a><nav aria-label="Main navigation"><a href="../#features">Features</a><a href="./">Docs</a><a href="parity.html">Parity</a><a class="nav-github" href="https://github.com/jweaver60/link-studio">GitHub</a></nav></header>
-    <main class="docs-layout" id="docs-main">
-      <aside class="docs-sidebar" aria-label="Documentation"><p>Documentation</p><a aria-current="page" href="./">Overview</a><a href="installation.html">Installation</a><a href="features.html">Feature guide</a><a href="parity.html">Parity & safety</a></aside>
-      <article class="docs-content">
-        <p class="eyebrow">Documentation</p><h1>Link Studio,<br><span>from zero to live.</span></h1>
-        <p class="docs-lede">Everything needed to install, configure, and use an Insta360 Link 2 on Linux—without giving up the workflows of the official desktop client.</p>
-        <div class="callout"><strong>Version 1.0</strong><p>Hardware-tested on Insta360 Link 2 firmware <span class="inline-code">v3.2.6.8_build5</span> under Omarchy.</p></div>
-        <div class="doc-card-grid">
-          <a class="doc-card" href="installation.html"><span class="doc-arrow">→</span><b>Install Link Studio</b><span>Arch package, source install, and optional integrations.</span></a>
-          <a class="doc-card" href="features.html"><span class="doc-arrow">→</span><b>Learn the controls</b><span>Capture, tracking, effects, audio, scenes, and tools.</span></a>
-          <a class="doc-card" href="parity.html"><span class="doc-arrow">→</span><b>Review parity</b><span>What is hardware-native, locally equivalent, or external.</span></a>
-          <a class="doc-card" href="https://github.com/jweaver60/link-studio"><span class="doc-arrow">↗</span><b>Source repository</b><span>Code, release history, packaging, and issue tracking.</span></a>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="header-brand" href="../" aria-label="Link Studio documentation home"><span class="brand-mark" aria-hidden="true"></span><span>Link Studio</span></a>
+      <div class="header-content">
+        <span class="version-pill">v1.0.2</span>
+        <a class="header-link" href="installation.html">Install</a>
+        <a class="header-link" href="https://github.com/jweaver60/link-studio">GitHub</a>
+        <button class="icon-button" type="button" data-theme-toggle aria-label="Change color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10.01 10.01 0 0 0 12 2Zm0 18V4a8 8 0 0 1 0 16Z"/></svg></button>
+        <button class="icon-button menu-button" type="button" data-sidebar-toggle aria-label="Open documentation navigation" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg></button>
+      </div>
+    </header>
+
+    <div class="docs-shell">
+      <aside class="docs-sidebar" aria-label="Documentation navigation">
+        <nav>
+          <section class="sidebar-section"><h2>Getting started</h2><a href="../">Introduction</a><a href="installation.html">Installation</a><a aria-current="page" href="./">Quick start</a></section>
+          <section class="sidebar-section"><h2>Guide</h2><a href="features.html#camera">Camera and image</a><a href="features.html#tracking">Tracking and composition</a><a href="features.html#effects">Effects and output</a><a href="features.html#audio">Audio and recording</a><a href="features.html#workflows">Presets and tools</a></section>
+          <section class="sidebar-section"><h2>Reference</h2><a href="parity.html">Feature parity</a><a href="parity.html#boundaries">Safety boundaries</a><a href="parity.html#privacy">Privacy and security</a></section>
+        </nav>
+        <p class="sidebar-meta">Independent software for Insta360 Link webcams. Not affiliated with Insta360.</p>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Close documentation navigation"></button>
+
+      <main class="docs-stage" id="main">
+        <div class="docs-grid">
+          <article class="docs-content">
+            <p class="page-label">Getting started</p>
+            <h1>Quick start</h1>
+            <p class="page-description">Connect the webcam, launch Link Studio, and start a preview. The application selects the first compatible device and a supported video mode automatically.</p>
+
+            <h2 id="launch">Launch the application</h2>
+            <p>Open Link Studio from the desktop application menu, or start it from a terminal:</p>
+            <div class="code-block">link-studio</div>
+            <p>If multiple video devices are present, use the device selector in the preview toolbar. Link Studio only offers formats reported by the selected device.</p>
+
+            <h2 id="preview">Start preview</h2>
+            <ol>
+              <li>Connect the Link webcam directly over USB.</li>
+              <li>Select a resolution and frame rate in the preview toolbar.</li>
+              <li>Turn on <strong>Preview</strong>.</li>
+            </ol>
+            <p>The default is 1280 × 720 at 30 fps when that mode is advertised. Changing resolution or orientation safely stops active recording and virtual-camera output before rebuilding the stream.</p>
+            <div class="callout warning">
+              <strong>Only one capture client at a time</strong>
+              <p>Many webcams cannot provide the same V4L2 stream to two applications simultaneously. Stop preview before opening the physical camera directly in another program, or use Link Studio's processed virtual camera.</p>
+            </div>
+
+            <h2 id="controls">Find the controls</h2>
+            <div class="reference-grid">
+              <div><strong>Presets</strong><span>Save and recall complete camera setups.</span></div>
+              <div><strong>View</strong><span>Gimbal, zoom, focus, orientation, and privacy.</span></div>
+              <div><strong>Image</strong><span>Exposure, white balance, HDR, and color.</span></div>
+              <div><strong>Smart</strong><span>Camera modes, tracking, and composition.</span></div>
+              <div><strong>Effects</strong><span>Local processing and virtual-camera output.</span></div>
+              <div><strong>Audio</strong><span>Microphone DSP, source, mute, and volume.</span></div>
+              <div><strong>Tools</strong><span>Teleprompter and local voice-note workflows.</span></div>
+              <div><strong>Device</strong><span>Firmware, remote, shortcuts, storage, and support.</span></div>
+            </div>
+
+            <h2 id="capture">Capture a frame or recording</h2>
+            <p>Use the camera button for a PNG screenshot and the record button for an H.264/AAC MP4. The Device page shows and changes the output folders. Recording uses the selected PipeWire microphone source.</p>
+            <p>For OBS, browsers, or meeting software, install the optional virtual-camera helper and enable <strong>Virtual camera</strong> on the Effects page. Processed frames then appear at <code>/dev/video20</code>.</p>
+
+            <h2 id="diagnose">Check a problem</h2>
+            <p>The command-line diagnostic is read-only and reports device discovery, video formats, firmware information, and the available audio/video stack:</p>
+            <div class="code-block">link-studio --diagnose</div>
+            <p>For an issue report, export a support bundle from the Device page. Bundles exclude camera frames, screenshots, and recordings.</p>
+
+            <nav class="page-nav" aria-label="Previous and next pages"><a href="installation.html">← Installation</a><a href="features.html">Feature guide →</a></nav>
+            <p class="page-footer">Documentation for Link Studio 1.0.2 · Updated August 2026</p>
+          </article>
+          <aside class="page-toc" aria-label="On this page"><h2>On this page</h2><a href="#launch">Launch the application</a><a href="#preview">Start preview</a><a href="#controls">Find the controls</a><a href="#capture">Capture a frame or recording</a><a href="#diagnose">Check a problem</a></aside>
         </div>
-        <h2 id="quick-start">Quick start</h2>
-        <p>Connect the Link 2 directly over USB, launch Link Studio, and the first compatible camera is selected automatically. The preview opens using the camera's advertised 1280×720, 30 fps mode.</p>
-        <div class="code-block">link-studio</div>
-        <p>The eight control pages separate scenes, physical view, image controls, smart modes, software effects, audio, production tools, and device/application settings.</p>
-        <div class="feature-list">
-          <div><b>Presets</b><span>Save ten scenes and choose one to apply at startup.</span></div><div><b>View</b><span>Gimbal, zoom, focus, orientation, and privacy.</span></div>
-          <div><b>Image</b><span>HDR, exposure, white balance, color, and templates.</span></div><div><b>Smart</b><span>AI modes, composition, speed, groups, and areas.</span></div>
-          <div><b>Effects</b><span>Local AI processing and virtual-camera output.</span></div><div><b>Audio</b><span>Link 2 DSP modes, source, mute, and volume.</span></div>
-          <div><b>Tools</b><span>Teleprompter and local AI voice recording.</span></div><div><b>Device</b><span>Firmware, remote, shortcuts, storage, and support.</span></div>
-        </div>
-        <div class="doc-footer-nav"><span></span><a href="installation.html">Installation →</a></div>
-      </article>
-    </main>
+      </main>
+    </div>
   </body>
 </html>

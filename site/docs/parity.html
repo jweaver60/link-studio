@@ -1,43 +1,105 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#101019">
-    <meta name="description" content="Link Studio parity and hardware safety contract for Insta360 Link 2.">
-    <meta property="og:title" content="Parity and safety · Link Studio"><meta property="og:description" content="The completed Linux parity contract and its deliberate safety boundaries."><meta property="og:type" content="article"><meta property="og:url" content="https://jweaver60.github.io/link-studio/docs/parity.html">
-    <meta name="twitter:card" content="summary"><meta name="twitter:title" content="Parity and safety · Link Studio"><meta name="twitter:description" content="The completed Linux parity contract and its deliberate safety boundaries."><title>Parity and safety · Link Studio</title>
-    <link rel="stylesheet" href="../assets/styles.css"><link rel="stylesheet" href="../assets/docs.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Link Studio feature parity, hardware safety, and privacy reference.">
+    <meta property="og:title" content="Feature parity · Link Studio">
+    <meta property="og:description" content="Implementation status and safety boundaries for Link Studio on Linux.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://jweaver60.github.io/link-studio/docs/parity.html">
+    <title>Feature parity · Link Studio</title>
+    <link rel="stylesheet" href="../assets/styles.css">
+    <script src="../assets/site.js" defer></script>
   </head>
   <body>
-    <a class="skip-link" href="#docs-main">Skip to content</a>
-    <header class="site-header docs-header"><a class="brand" href="../"><span class="brand-mark" aria-hidden="true"><span></span></span><span>Link Studio</span></a><nav aria-label="Main navigation"><a href="../#features">Features</a><a href="./">Docs</a><a href="parity.html">Parity</a><a class="nav-github" href="https://github.com/jweaver60/link-studio">GitHub</a></nav></header>
-    <main class="docs-layout" id="docs-main">
-      <aside class="docs-sidebar" aria-label="Documentation"><p>Documentation</p><a href="./">Overview</a><a href="installation.html">Installation</a><a href="features.html">Feature guide</a><a aria-current="page" href="parity.html">Parity & safety</a></aside>
-      <article class="docs-content">
-        <p class="eyebrow">Parity contract</p><h1>Complete,<br><span>with clear boundaries.</span></h1>
-        <p class="docs-lede">Link Studio 1.0 implements the safe Linux application scope: direct controls validated on hardware and local equivalents that produce the same usable output without guessing destructive protocols.</p>
-        <table class="parity-table"><thead><tr><th>Area</th><th>Capability</th><th>Status</th></tr></thead><tbody>
-          <tr><td>Camera</td><td>Preview, formats, gimbal, zoom, focus, mirror, privacy</td><td class="status-complete">Complete</td></tr>
-          <tr><td>Smart</td><td>Tracking, groups, composition, areas, Whiteboard, Overhead, DeskView</td><td class="status-complete">Complete</td></tr>
-          <tr><td>Image</td><td>HDR, exposure, white balance, anti-flicker, color, templates</td><td class="status-complete">Complete</td></tr>
-          <tr><td>Effects</td><td>Blur, bokeh, replacement, green screen, beauty, makeup, Smart Whiteboard</td><td class="status-local">Local</td></tr>
-          <tr><td>Capture</td><td>PNG, H.264/AAC MP4, folders, processed virtual camera</td><td class="status-complete">Complete</td></tr>
-          <tr><td>Audio</td><td>Voice Focus, Voice Suppression, Music Balance, source, volume, mute</td><td class="status-complete">Complete</td></tr>
-          <tr><td>Workflow</td><td>Scenes, compact mode, global actions, phone remote, teleprompter</td><td class="status-complete">Complete</td></tr>
-          <tr><td>AI recording</td><td>Voice notes, markers, offline transcription, summaries</td><td class="status-local">Local</td></tr>
-          <tr><td>Device</td><td>Firmware/build display, support bundle, official update flow</td><td class="status-complete">Safe flow</td></tr>
-          <tr><td>Desktop</td><td>Live Omarchy theme integration</td><td class="status-complete">Complete</td></tr>
-        </tbody></table>
-        <h2 id="boundaries">External boundaries</h2>
-        <h3>Firmware compatibility formats</h3><p>Link Studio lists every resolution and rate advertised by active firmware. It does not send unidentified writes to unlock firmware-only compatibility modes. The tested Link 2 advertises 24, 25, and 30 fps through 4K.</p>
-        <h3>Hardware-only orientation</h3><p>Vertical flip and portrait rotations are supplied in the complete processed output path. Unknown persistent hardware correction bits are not written.</p>
-        <h3>Firmware flashing and reset</h3><p>The current firmware and build are read directly from the camera. Updates open Insta360's recovery-safe U-Disk instructions; Link Studio never writes an unauthenticated firmware blob over an inferred protocol.</p>
-        <h3>Vendor accounts and cloud</h3><p>Identity, membership, billing, and InSight cloud services cannot be cloned. Link Studio supplies account-free local recording, offline transcription, markers, and summaries.</p>
-        <h3>Wayland stacking</h3><p>The teleprompter is a dedicated window. Hyprland and Wayland retain final authority over whether any surface stays above every other application.</p>
-        <h3>Safe camera shutdown</h3><p>Link Studio closes the window immediately, then drains its non-daemon camera worker before closing the device descriptor. This prevents descriptor reuse while an ioctl is in flight. If a kernel driver leaves an ioctl permanently wedged, the process can remain alive without a window until that kernel call returns.</p>
-        <h2 id="privacy">Privacy and security</h2>
-        <ul><li>Camera frames used by effects remain on the machine.</li><li>The phone remote is disabled by default, LAN-only, and protected with a random per-session token.</li><li>Support bundles exclude screenshots and recordings.</li><li>Unknown or destructive UVC extension writes are excluded.</li><li>Global actions use the desktop portal instead of editing compositor configuration.</li></ul>
-        <div class="doc-footer-nav"><a href="features.html">← Feature guide</a><a href="../">Home →</a></div>
-      </article>
-    </main>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="header-brand" href="../" aria-label="Link Studio documentation home"><span class="brand-mark" aria-hidden="true"></span><span>Link Studio</span></a>
+      <div class="header-content">
+        <span class="version-pill">v1.0.2</span>
+        <a class="header-link" href="installation.html">Install</a>
+        <a class="header-link" href="https://github.com/jweaver60/link-studio">GitHub</a>
+        <button class="icon-button" type="button" data-theme-toggle aria-label="Change color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10.01 10.01 0 0 0 12 2Zm0 18V4a8 8 0 0 1 0 16Z"/></svg></button>
+        <button class="icon-button menu-button" type="button" data-sidebar-toggle aria-label="Open documentation navigation" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg></button>
+      </div>
+    </header>
+
+    <div class="docs-shell">
+      <aside class="docs-sidebar" aria-label="Documentation navigation">
+        <nav>
+          <section class="sidebar-section"><h2>Getting started</h2><a href="../">Introduction</a><a href="installation.html">Installation</a><a href="./">Quick start</a></section>
+          <section class="sidebar-section"><h2>Guide</h2><a href="features.html#camera">Camera and image</a><a href="features.html#tracking">Tracking and composition</a><a href="features.html#effects">Effects and output</a><a href="features.html#audio">Audio and recording</a><a href="features.html#workflows">Presets and tools</a></section>
+          <section class="sidebar-section"><h2>Reference</h2><a aria-current="page" href="parity.html">Feature parity</a><a href="#boundaries">Safety boundaries</a><a href="#privacy">Privacy and security</a></section>
+        </nav>
+        <p class="sidebar-meta">Independent software for Insta360 Link webcams. Not affiliated with Insta360.</p>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Close documentation navigation"></button>
+
+      <main class="docs-stage" id="main">
+        <div class="docs-grid">
+          <article class="docs-content">
+            <p class="page-label">Reference</p>
+            <h1>Feature parity</h1>
+            <p class="page-description">Link Studio implements the safe Linux application scope: direct controls validated on hardware and local equivalents that produce the same usable output without guessing destructive protocols.</p>
+
+            <h2 id="status">Implementation status</h2>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Area</th><th>Capability</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td>Camera</td><td>Preview, formats, gimbal, zoom, focus, mirror, privacy</td><td class="status-complete">Complete</td></tr>
+                  <tr><td>Smart</td><td>Tracking, groups, composition, areas, Whiteboard, Overhead, DeskView</td><td class="status-complete">Complete</td></tr>
+                  <tr><td>Image</td><td>HDR, exposure, white balance, anti-flicker, color, templates</td><td class="status-complete">Complete</td></tr>
+                  <tr><td>Effects</td><td>Blur, bokeh, replacement, green screen, beauty, makeup, Smart Whiteboard</td><td class="status-local">Local equivalent</td></tr>
+                  <tr><td>Capture</td><td>PNG, H.264/AAC MP4, folders, processed virtual camera</td><td class="status-complete">Complete</td></tr>
+                  <tr><td>Audio</td><td>Voice Focus, Voice Suppression, Music Balance, source, volume, mute</td><td class="status-complete">Complete</td></tr>
+                  <tr><td>Workflow</td><td>Scenes, compact mode, global actions, phone remote, teleprompter</td><td class="status-complete">Complete</td></tr>
+                  <tr><td>Voice notes</td><td>Recording, markers, offline transcription, summaries</td><td class="status-local">Local equivalent</td></tr>
+                  <tr><td>Device</td><td>Firmware/build display, support bundle, official update path</td><td class="status-complete">Safe path</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p><strong>Complete</strong> means the capability is directly exposed through the camera or standard Linux facilities. <strong>Local equivalent</strong> means Link Studio provides the resulting workflow without depending on a vendor service.</p>
+
+            <h2 id="boundaries">Safety boundaries</h2>
+            <h3>Firmware compatibility formats</h3>
+            <p>Link Studio lists every resolution and rate advertised by active firmware. It does not send unidentified writes to unlock firmware-only compatibility modes. The tested Link 2 firmware advertises 24, 25, and 30 fps through 4K.</p>
+
+            <h3>Hardware-only orientation</h3>
+            <p>Vertical flip and portrait rotations are supplied in the processed output path. Unknown persistent hardware-correction bits are not written.</p>
+
+            <h3>Firmware flashing and reset</h3>
+            <p>The current firmware and build are read directly from the camera. Updates open Insta360's recovery-safe U-Disk instructions; Link Studio does not write a firmware image through an inferred protocol.</p>
+
+            <h3>Vendor accounts and cloud services</h3>
+            <p>Identity, membership, billing, and InSight services are outside the application scope. Link Studio supplies account-free local recording, offline transcription, markers, and summaries.</p>
+
+            <h3>Wayland window stacking</h3>
+            <p>The teleprompter is a dedicated window. The active Wayland compositor retains final authority over whether any surface remains above every other application.</p>
+
+            <h3>Camera worker shutdown</h3>
+            <p>The window closes immediately, then a non-daemon drain thread waits for the camera worker before closing the device descriptor. This prevents descriptor reuse while an ioctl is in flight. If a kernel driver leaves an ioctl permanently wedged, the process can remain alive without a window until that call returns.</p>
+
+            <h2 id="privacy">Privacy and security</h2>
+            <ul>
+              <li>Camera frames used by effects remain on the machine.</li>
+              <li>The phone remote is disabled by default, LAN-only, and protected by a random per-session token.</li>
+              <li>Support bundles exclude screenshots and recordings.</li>
+              <li>Unknown or destructive UVC extension writes are excluded.</li>
+              <li>Global actions use the XDG desktop portal instead of editing compositor configuration.</li>
+            </ul>
+
+            <h2 id="reporting">Reporting an issue</h2>
+            <p>Open an issue in the <a href="https://github.com/jweaver60/link-studio/issues">GitHub repository</a> and attach the support bundle exported from Device → Application. Include the camera model, firmware version, selected video format, and the action that led to the problem.</p>
+
+            <nav class="page-nav" aria-label="Previous and next pages"><a href="features.html">← Feature guide</a><a href="https://github.com/jweaver60/link-studio">Source repository ↗</a></nav>
+            <p class="page-footer">Documentation for Link Studio 1.0.2 · Updated August 2026</p>
+          </article>
+          <aside class="page-toc" aria-label="On this page"><h2>On this page</h2><a href="#status">Implementation status</a><a href="#boundaries">Safety boundaries</a><a href="#privacy">Privacy and security</a><a href="#reporting">Reporting an issue</a></aside>
+        </div>
+      </main>
+    </div>
   </body>
 </html>

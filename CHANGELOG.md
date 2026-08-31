@@ -2,6 +2,14 @@
 
 All notable changes to Link Studio are recorded here.
 
+## 1.0.2 — 2026-08-31
+
+- Replaced the launch-style Pages site with a documentation-first guide and reference layout.
+- Repositioned Link Studio as a general Arch Linux application and limited Omarchy to an optional
+  appearance compatibility note.
+- Made the virtual-camera and local-transcription setup helpers use standard Arch package tooling
+  instead of requiring the Omarchy command.
+
 ## 1.0.1 — 2026-08-31
 
 - Kept live palette synchronization while removing theme names from the application UI and shared

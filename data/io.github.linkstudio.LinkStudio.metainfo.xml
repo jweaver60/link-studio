@@ -12,7 +12,7 @@
     <p>
       Link Studio provides live preview and capture, safe hardware camera controls,
       local AI effects and tracking, audio processing modes, scenes, a teleprompter,
-      phone and global remote control, and automatic Omarchy theming for Insta360 Link webcams.
+      and phone and global remote control for Insta360 Link webcams.
     </p>
   </description>
   <launchable type="desktop-id">io.github.linkstudio.LinkStudio.desktop</launchable>
@@ -31,6 +31,11 @@
   </screenshots>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.0.2" date="2026-08-31">
+      <description>
+        <p>Documentation redesign and distribution-neutral Arch setup helpers.</p>
+      </description>
+    </release>
     <release version="1.0.1" date="2026-08-31">
       <description>
         <p>Correctness, concurrency, privacy, preview-color, and global-shortcut fixes.</p>
@@ -38,7 +43,7 @@
     </release>
     <release version="1.0.0" date="2026-08-31">
       <description>
-        <p>First production release, hardware-tested with Insta360 Link 2 on Omarchy.</p>
+        <p>First production release, hardware-tested with Insta360 Link 2 on Arch Linux.</p>
       </description>
     </release>
   </releases>

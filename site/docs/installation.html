@@ -1,44 +1,89 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#101019">
-    <meta name="description" content="Install Link Studio on Omarchy and Arch Linux.">
-    <meta property="og:title" content="Installation · Link Studio"><meta property="og:description" content="Install Link Studio on Omarchy and Arch Linux."><meta property="og:type" content="article"><meta property="og:url" content="https://jweaver60.github.io/link-studio/docs/installation.html">
-    <meta name="twitter:card" content="summary"><meta name="twitter:title" content="Installation · Link Studio"><meta name="twitter:description" content="Install Link Studio on Omarchy and Arch Linux."><title>Installation · Link Studio</title>
-    <link rel="stylesheet" href="../assets/styles.css"><link rel="stylesheet" href="../assets/docs.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Install Link Studio on Arch Linux from the AUR or source.">
+    <meta property="og:title" content="Installation · Link Studio">
+    <meta property="og:description" content="Install Link Studio on Arch Linux from the AUR or source.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://jweaver60.github.io/link-studio/docs/installation.html">
+    <title>Installation · Link Studio</title>
+    <link rel="stylesheet" href="../assets/styles.css">
+    <script src="../assets/site.js" defer></script>
   </head>
   <body>
-    <a class="skip-link" href="#docs-main">Skip to content</a>
-    <header class="site-header docs-header"><a class="brand" href="../"><span class="brand-mark" aria-hidden="true"><span></span></span><span>Link Studio</span></a><nav aria-label="Main navigation"><a href="../#features">Features</a><a href="./">Docs</a><a href="parity.html">Parity</a><a class="nav-github" href="https://github.com/jweaver60/link-studio">GitHub</a></nav></header>
-    <main class="docs-layout" id="docs-main">
-      <aside class="docs-sidebar" aria-label="Documentation"><p>Documentation</p><a href="./">Overview</a><a aria-current="page" href="installation.html">Installation</a><a href="features.html">Feature guide</a><a href="parity.html">Parity & safety</a></aside>
-      <article class="docs-content">
-        <p class="eyebrow">Get started</p><h1>Install on<br><span>Omarchy or Arch.</span></h1>
-        <p class="docs-lede">Link Studio installs for one user without changing Hyprland or Omarchy configuration. Optional helpers add a virtual camera and offline transcription only when requested.</p>
-        <h2 id="aur">Install from the AUR</h2>
-        <p>Install the stable package with your preferred AUR helper:</p>
-        <div class="code-block">yay -S link-studio</div>
-        <p>The package depends on the normal Arch GTK, GStreamer, PipeWire, OpenCV, and Python stack plus <span class="inline-code">python-mediapipe</span> from the AUR.</p>
-        <h2 id="source">Install from source</h2>
-        <p>Clone the public repository and run the user installer:</p>
-        <div class="code-block">git clone https://github.com/jweaver60/link-studio.git
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="header-brand" href="../" aria-label="Link Studio documentation home"><span class="brand-mark" aria-hidden="true"></span><span>Link Studio</span></a>
+      <div class="header-content">
+        <span class="version-pill">v1.0.2</span>
+        <a class="header-link" href="installation.html">Install</a>
+        <a class="header-link" href="https://github.com/jweaver60/link-studio">GitHub</a>
+        <button class="icon-button" type="button" data-theme-toggle aria-label="Change color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10.01 10.01 0 0 0 12 2Zm0 18V4a8 8 0 0 1 0 16Z"/></svg></button>
+        <button class="icon-button menu-button" type="button" data-sidebar-toggle aria-label="Open documentation navigation" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg></button>
+      </div>
+    </header>
+
+    <div class="docs-shell">
+      <aside class="docs-sidebar" aria-label="Documentation navigation">
+        <nav>
+          <section class="sidebar-section"><h2>Getting started</h2><a href="../">Introduction</a><a aria-current="page" href="installation.html">Installation</a><a href="./">Quick start</a></section>
+          <section class="sidebar-section"><h2>Guide</h2><a href="features.html#camera">Camera and image</a><a href="features.html#tracking">Tracking and composition</a><a href="features.html#effects">Effects and output</a><a href="features.html#audio">Audio and recording</a><a href="features.html#workflows">Presets and tools</a></section>
+          <section class="sidebar-section"><h2>Reference</h2><a href="parity.html">Feature parity</a><a href="parity.html#boundaries">Safety boundaries</a><a href="parity.html#privacy">Privacy and security</a></section>
+        </nav>
+        <p class="sidebar-meta">Independent software for Insta360 Link webcams. Not affiliated with Insta360.</p>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Close documentation navigation"></button>
+
+      <main class="docs-stage" id="main">
+        <div class="docs-grid">
+          <article class="docs-content">
+            <p class="page-label">Getting started</p>
+            <h1>Installation</h1>
+            <p class="page-description">Install the maintained Arch package from the AUR, or use the repository installer for a per-user source installation.</p>
+
+            <h2 id="aur">AUR package</h2>
+            <p>Install Link Studio with your preferred AUR helper:</p>
+            <div class="code-block">yay -S link-studio</div>
+            <p>The package installs the application, desktop entry, AppStream metadata, bundled MediaPipe models, and setup helpers. <code>python-mediapipe</code> is also sourced from the AUR; the remaining runtime dependencies come from the official Arch repositories.</p>
+
+            <h2 id="source">Install from source</h2>
+            <p>Clone the public repository and run the per-user installer:</p>
+            <div class="code-block">git clone https://github.com/jweaver60/link-studio.git
 cd link-studio
 ./scripts/install-user</div>
-        <p>The installer anchors its environment to <span class="inline-code">/usr/bin/python</span>, preserving Omarchy's system GTK bindings while installing Link Studio's Python dependencies.</p>
-        <h2 id="requirements">Native requirements</h2>
-        <div class="code-block">sudo pacman -S gtk4 libadwaita python-gobject gstreamer \
+            <p>The installer creates an isolated environment under <code>${XDG_DATA_HOME:-~/.local/share}/link-studio</code> and installs launchers under <code>${XDG_BIN_HOME:-~/.local/bin}</code>. It does not require root or modify desktop configuration.</p>
+
+            <h2 id="requirements">Native requirements</h2>
+            <p>For a source installation on Arch Linux, install the native GTK and GStreamer stack first:</p>
+            <div class="code-block">sudo pacman -S gtk4 libadwaita python-gobject gstreamer \
   gst-plugins-base gst-plugins-good gst-plugins-bad gst-libav v4l-utils</div>
-        <h2 id="optional">Optional integrations</h2>
-        <h3>Processed virtual camera</h3><p>Creates a temporary <span class="inline-code">/dev/video20</span> through <span class="inline-code">v4l2loopback</span>. The helper uses Omarchy's package command and does not write persistent kernel configuration.</p>
-        <div class="code-block">link-studio-setup-virtual-camera</div>
-        <h3>Offline transcription</h3><p>Installs whisper.cpp and downloads the multilingual base model. The 142 MiB model is verified against a pinned SHA-256 digest before use.</p>
-        <div class="code-block">link-studio-setup-local-ai</div>
-        <h2 id="diagnostics">Verify the camera</h2>
-        <div class="code-block">link-studio --version
+            <p>The project launcher uses <code>/usr/bin/python</code> so the environment can access Arch's native GObject introspection bindings.</p>
+
+            <h2 id="optional">Optional components</h2>
+            <h3>Processed virtual camera</h3>
+            <p>The virtual camera requires <code>v4l2loopback-dkms</code>, <code>v4l2loopback-utils</code>, and the headers for the running kernel. The helper installs the packages on Arch and loads a temporary device at <code>/dev/video20</code>:</p>
+            <div class="code-block">link-studio-setup-virtual-camera</div>
+            <p>No persistent module configuration is written. After a reboot, run the helper again before enabling virtual-camera output.</p>
+
+            <h3>Offline transcription</h3>
+            <p>The local voice-note workflow can use whisper.cpp for transcription. This helper installs <code>whisper-cpp</code> when needed and downloads the multilingual base model:</p>
+            <div class="code-block">link-studio-setup-local-ai</div>
+            <p>The model is approximately 142 MiB and is verified against a pinned SHA-256 digest before installation.</p>
+
+            <h2 id="verify">Verify the installation</h2>
+            <div class="code-block">link-studio --version
 link-studio --diagnose</div>
-        <p>Diagnostics are read-only. They report detected devices, advertised formats, firmware/build information, current safe control state, and the active Omarchy palette.</p>
-        <div class="doc-footer-nav"><a href="./">← Overview</a><a href="features.html">Feature guide →</a></div>
-      </article>
-    </main>
+            <p>The diagnostic command is read-only. It reports detected devices, advertised formats, firmware information, safe control state, and the available audio/video stack.</p>
+
+            <nav class="page-nav" aria-label="Previous and next pages"><a href="../">← Introduction</a><a href="./">Quick start →</a></nav>
+            <p class="page-footer">Documentation for Link Studio 1.0.2 · Updated August 2026</p>
+          </article>
+          <aside class="page-toc" aria-label="On this page"><h2>On this page</h2><a href="#aur">AUR package</a><a href="#source">Install from source</a><a href="#requirements">Native requirements</a><a href="#optional">Optional components</a><a href="#verify">Verify the installation</a></aside>
+        </div>
+      </main>
+    </div>
   </body>
 </html>
