@@ -49,9 +49,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.diagnose:
         return _diagnose(args.device)
 
+    # GTK may consult Settings through the desktop portal while it is imported. Native
+    # processes must register their app ID on the same bus connection before that happens.
+    from .shortcuts import try_register_portal_identity
+
+    portal_connection, portal_identity_error = try_register_portal_identity()
     from .application import LinkStudioApplication
 
-    application = LinkStudioApplication(device_path=args.device, start_preview=not args.no_preview)
+    application = LinkStudioApplication(
+        device_path=args.device,
+        start_preview=not args.no_preview,
+        portal_connection=portal_connection,
+        portal_identity_error=portal_identity_error,
+    )
     return application.run([sys.argv[0]])
 
 

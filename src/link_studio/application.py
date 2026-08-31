@@ -7,7 +7,7 @@ import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gio", "2.0")
 gi.require_version("Gtk", "4.0")
-from gi.repository import Adw, Gio, Gtk
+from gi.repository import Adw, Gio, GLib, Gtk
 
 from . import __version__
 from .camera import Camera, CameraError, discover_cameras
@@ -19,7 +19,13 @@ LOGGER = logging.getLogger("link_studio.application")
 
 
 class LinkStudioApplication(Adw.Application):
-    def __init__(self, device_path: str | None = None, start_preview: bool = True):
+    def __init__(
+        self,
+        device_path: str | None = None,
+        start_preview: bool = True,
+        portal_connection: Gio.DBusConnection | None = None,
+        portal_identity_error: str | None = None,
+    ):
         configure_logging()
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
         self.device_path = device_path
@@ -28,6 +34,18 @@ class LinkStudioApplication(Adw.Application):
         self.global_shortcuts = GlobalShortcutPortal(
             self._global_shortcut_activated, self._global_shortcut_status
         )
+        self.global_shortcuts.connection = portal_connection
+        if portal_identity_error:
+            LOGGER.warning(
+                "Could not register the desktop portal app identity: %s", portal_identity_error
+            )
+        elif portal_connection is None:
+            try:
+                self.global_shortcuts.prepare()
+            except GLib.Error as exc:
+                LOGGER.warning(
+                    "Could not register the desktop portal app identity: %s", exc.message
+                )
 
     def do_startup(self) -> None:
         Adw.Application.do_startup(self)

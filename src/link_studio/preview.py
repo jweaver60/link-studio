@@ -234,10 +234,10 @@ class PreviewStream:
     @staticmethod
     def _filter_values(name: str) -> tuple[float, float, float, float]:
         presets = {
-            "none": (0.0, 1.0, 1.0, 1.0),
-            "mono": (0.0, 0.0, 1.02, 1.0),
-            "punch": (0.0, 1.22, 1.14, 1.0),
-            "soft": (0.03, 0.90, 0.90, 1.0),
+            "none": (0.0, 1.0, 1.0, 0.0),
+            "mono": (0.0, 0.0, 1.02, 0.0),
+            "punch": (0.0, 1.22, 1.14, 0.0),
+            "soft": (0.03, 0.90, 0.90, 0.0),
         }
         try:
             return presets[name]

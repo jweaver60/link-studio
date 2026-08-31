@@ -24,6 +24,8 @@ All notable changes to Link Studio are recorded here.
   readers and queued main-thread completions.
 - Stopped fixed-geometry recording and virtual-camera consumers before stream-format changes or
   portrait/landscape preset restores, preventing silently truncated or frozen outputs.
+- Restored neutral preview hue so camera colors render correctly, and registered the native app
+  identity with the desktop portal so compositor-managed keyboard shortcuts can be bound.
 
 ## 1.0.0 — 2026-08-31
 

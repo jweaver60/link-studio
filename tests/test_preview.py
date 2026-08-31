@@ -96,8 +96,11 @@ class VirtualCameraDiscoveryTests(unittest.TestCase):
             "brightness": 0.0,
             "saturation": 1.22,
             "contrast": 1.14,
-            "hue": 1.0,
+            "hue": 0.0,
         }
         self.assertEqual(preview.filter_name, "punch")
         self.assertEqual(first.properties, expected)
         self.assertEqual(second.properties, expected)
+
+    def test_none_filter_uses_neutral_video_balance_values(self):
+        self.assertEqual(PreviewStream._filter_values("none"), (0.0, 1.0, 1.0, 0.0))

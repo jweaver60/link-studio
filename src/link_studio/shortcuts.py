@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import secrets
 import tempfile
@@ -16,9 +17,14 @@ gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
+from .constants import APP_ID
+
+LOGGER = logging.getLogger("link_studio.shortcuts")
+
 PORTAL_NAME = "org.freedesktop.portal.Desktop"
 PORTAL_PATH = "/org/freedesktop/portal/desktop"
 PORTAL_INTERFACE = "org.freedesktop.portal.GlobalShortcuts"
+HOST_REGISTRY_INTERFACE = "org.freedesktop.host.portal.Registry"
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +91,42 @@ def _unpack(value: Any) -> Any:
     return value.unpack() if isinstance(value, GLib.Variant) else value
 
 
+def register_portal_identity() -> Gio.DBusConnection:
+    """Associate the process with Link Studio before GTK contacts the portal."""
+
+    connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    try:
+        connection.call_sync(
+            PORTAL_NAME,
+            PORTAL_PATH,
+            HOST_REGISTRY_INTERFACE,
+            "Register",
+            GLib.Variant("(sa{sv})", (APP_ID, {})),
+            None,
+            Gio.DBusCallFlags.NONE,
+            5000,
+            None,
+        )
+    except GLib.Error as exc:
+        remote_error = Gio.DBusError.get_remote_error(exc) or ""
+        if remote_error not in {
+            "org.freedesktop.DBus.Error.UnknownInterface",
+            "org.freedesktop.DBus.Error.UnknownMethod",
+        }:
+            raise
+        LOGGER.info("Desktop portal host-app registration is unavailable")
+    return connection
+
+
+def try_register_portal_identity() -> tuple[Gio.DBusConnection | None, str | None]:
+    """Return an early portal connection without making app startup fatal."""
+
+    try:
+        return register_portal_identity(), None
+    except GLib.Error as exc:
+        return None, exc.message
+
+
 class GlobalShortcutPortal:
     """XDG portal session for compositor-managed, remappable global shortcuts."""
 
@@ -119,11 +161,21 @@ class GlobalShortcutPortal:
             return False
         return True
 
+    def prepare(self) -> None:
+        """Register this native process before making any desktop portal request."""
+
+        if self.connection:
+            return
+        self.connection = register_portal_identity()
+
     def _ensure_proxy(self) -> Gio.DBusProxy:
         if self.proxy:
             return self.proxy
-        proxy = Gio.DBusProxy.new_for_bus_sync(
-            Gio.BusType.SESSION,
+        self.prepare()
+        if not self.connection:
+            raise RuntimeError("Desktop portal session bus is unavailable")
+        proxy = Gio.DBusProxy.new_sync(
+            self.connection,
             Gio.DBusProxyFlags.NONE,
             None,
             PORTAL_NAME,
@@ -131,10 +183,8 @@ class GlobalShortcutPortal:
             PORTAL_INTERFACE,
             None,
         )
-        connection = proxy.get_connection()
         self.proxy = proxy
-        self.connection = connection
-        self._response_subscription = connection.signal_subscribe(
+        self._response_subscription = self.connection.signal_subscribe(
             PORTAL_NAME,
             "org.freedesktop.portal.Request",
             "Response",
@@ -143,7 +193,7 @@ class GlobalShortcutPortal:
             Gio.DBusSignalFlags.NONE,
             self._request_response,
         )
-        self._activated_subscription = connection.signal_subscribe(
+        self._activated_subscription = self.connection.signal_subscribe(
             PORTAL_NAME,
             PORTAL_INTERFACE,
             "Activated",
@@ -199,7 +249,7 @@ class GlobalShortcutPortal:
                 self._status(f"Shortcut settings could not be opened: {exc.message}", True)
         else:
             self._status(
-                "Use Omarchy Settings → Keyboard to change the portal-assigned shortcuts",
+                "Actions are registered; assign keys with Hyprland's global dispatcher",
                 True,
             )
 
@@ -267,7 +317,7 @@ class GlobalShortcutPortal:
         self.settings.set_enabled(True)
         bound = _unpack(results.get("shortcuts", []))
         count = len(bound) if isinstance(bound, (list, tuple)) else len(SHORTCUTS)
-        self._status(f"Global shortcuts active · {count} actions", True)
+        self._status(f"Global shortcut actions ready · {count} registered", True)
 
     def _shortcut_activated(
         self,

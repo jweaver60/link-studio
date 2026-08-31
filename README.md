@@ -99,7 +99,14 @@ and semantic colors update immediately. The phone remote receives the same palet
 or user configuration edit is required; other Linux desktops use the normal libadwaita theme.
 
 Global actions use the desktop portal rather than editing Hyprland bindings. Enable them under
-Device → Application, then assign triggers in Omarchy Settings when requested by the portal.
+Device → Application. Desktops with a portal configuration dialog can assign keys there. On
+Hyprland, list the registered action names with `hyprctl globalshortcuts`, then use its `global`
+dispatcher in `~/.config/hypr/hyprland.lua`, for example:
+
+```lua
+hl.bind("SUPER + SHIFT + R", hl.dsp.global("io.github.linkstudio.LinkStudio:record"))
+hl.bind("SUPER + SHIFT + S", hl.dsp.global("io.github.linkstudio.LinkStudio:screenshot"))
+```
 
 ## Safety model
 
