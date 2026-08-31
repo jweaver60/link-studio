@@ -22,6 +22,22 @@ class _FakeSwitch:
         return self.active
 
 
+class _CallbackToggle(_FakeSwitch):
+    def __init__(self, active=False, on_change=None):
+        super().__init__(active)
+        self.on_change = on_change
+        self.icon_name = None
+
+    def set_active(self, active):
+        changed = self.active != active
+        super().set_active(active)
+        if changed and self.on_change:
+            self.on_change(active)
+
+    def set_icon_name(self, icon_name):
+        self.icon_name = icon_name
+
+
 class _FakeSpinButton:
     def __init__(self, value=0):
         self.value = value
@@ -262,6 +278,7 @@ class WindowRegressionTests(unittest.TestCase):
             take_latest=Mock(),
             stop=Mock(),
         )
+        teardown_events = []
         window = SimpleNamespace(
             _closed=False,
             _preview_poll_source=42,
@@ -273,9 +290,17 @@ class WindowRegressionTests(unittest.TestCase):
             preview_placeholder_label=Mock(),
             preview_status=Mock(),
             compact_status=Mock(),
-            preview_toggle=Mock(),
             _toast=Mock(),
         )
+        window.record_button = _CallbackToggle(
+            True,
+            lambda active: teardown_events.append(("record", active, window._updating)),
+        )
+        window.virtual_camera_switch = _CallbackToggle(
+            True,
+            lambda active: teardown_events.append(("virtual", active, window._updating)),
+        )
+        window.preview_toggle = _CallbackToggle(True)
         window._set_preview_stopped_ui = lambda status, placeholder: (
             LinkStudioWindow._set_preview_stopped_ui(window, status, placeholder)
         )
@@ -287,7 +312,72 @@ class WindowRegressionTests(unittest.TestCase):
         preview.stop.assert_called_once_with()
         preview.take_latest.assert_not_called()
         window.preview_status.set_label.assert_called_once_with("Stream error")
-        window.preview_toggle.set_active.assert_called_once_with(False)
+        self.assertFalse(window.preview_toggle.get_active())
+        self.assertEqual(window.preview_toggle.icon_name, "media-playback-start-symbolic")
+        self.assertFalse(window.record_button.get_active())
+        self.assertFalse(window.virtual_camera_switch.get_active())
+        self.assertEqual(
+            teardown_events,
+            [("record", False, False), ("virtual", False, False)],
+        )
+
+    def test_failed_stream_format_uses_complete_stopped_preview_state(self):
+        preview = SimpleNamespace(
+            running=True,
+            config=None,
+            stop=Mock(),
+            start=Mock(side_effect=RuntimeError("unsupported format")),
+        )
+        stopped_ui = Mock()
+        window = SimpleNamespace(
+            _changing_stream_controls=False,
+            _stream_resolutions=[(3840, 2160)],
+            _stream_rates=[30],
+            _all_stream_rates=[30],
+            resolution_dropdown=_FakeDropDown(),
+            fps_dropdown=_FakeDropDown(),
+            capture_formats={(3840, 2160): (30,)},
+            virtual_camera=None,
+            preview=preview,
+            _toast=Mock(),
+            _stop_preview_poll=Mock(),
+            _set_preview_stopped_ui=stopped_ui,
+        )
+
+        LinkStudioWindow._stream_config_changed(window)
+
+        preview.stop.assert_called_once_with()
+        window._stop_preview_poll.assert_called_once_with()
+        stopped_ui.assert_called_once_with("Ready", "Preview is off")
+
+    def test_scheduled_job_completion_is_ignored_after_window_closes(self):
+        class ImmediateFuture:
+            def add_done_callback(self, callback):
+                callback(self)
+
+            def result(self):
+                return "done"
+
+        executor = SimpleNamespace(submit=Mock(return_value=ImmediateFuture()))
+        scheduled = []
+        success = Mock()
+        window = SimpleNamespace(
+            _closed=False,
+            executor=executor,
+            _job_started=Mock(),
+            _job_finished=Mock(),
+            _toast=Mock(),
+        )
+
+        with patch("link_studio.window.GLib.idle_add", side_effect=scheduled.append):
+            LinkStudioWindow._submit(window, "Completed", lambda: "done", on_success=success)
+
+        self.assertEqual(len(scheduled), 1)
+        window._closed = True
+        self.assertFalse(scheduled[0]())
+        window._job_finished.assert_not_called()
+        success.assert_not_called()
+        window._toast.assert_not_called()
 
     def test_screenshot_rejects_a_stale_frame_after_preview_stops(self):
         window = SimpleNamespace(

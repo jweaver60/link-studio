@@ -78,6 +78,19 @@ class CameraAbiTests(unittest.TestCase):
         with self.assertRaisesRegex(CameraError, "invalid XU length"):
             camera.xu_length(9, 28)
 
+    def test_xu_length_does_not_cache_cancellation_as_a_fallback(self):
+        camera = object.__new__(Camera)
+        camera._xu_lengths = {}
+
+        def cancelled(*_args):
+            raise CameraOperationCancelled("cancelled")
+
+        camera._xu_query = cancelled
+
+        with self.assertRaises(CameraOperationCancelled):
+            camera.xu_length(9, 27, fallback=2)
+        self.assertNotIn((9, 27), camera._xu_lengths)
+
     def test_read_state_contains_short_firmware_payload_errors(self):
         camera = object.__new__(Camera)
         camera.get_control = lambda _key: 0
@@ -98,6 +111,18 @@ class CameraAbiTests(unittest.TestCase):
 
         self.assertIn("exposure_compensation", state["unavailable"])
         self.assertIn("tracking_speed", state["unavailable"])
+
+    def test_read_state_propagates_operation_cancellation(self):
+        camera = object.__new__(Camera)
+        camera.get_control = lambda _key: 0
+
+        def cancelled():
+            raise CameraOperationCancelled("cancelled")
+
+        camera.read_video_mode = cancelled
+
+        with self.assertRaises(CameraOperationCancelled):
+            camera.read_state()
 
     def test_video_mode_waits_are_cooperatively_cancelled(self):
         camera = object.__new__(Camera)

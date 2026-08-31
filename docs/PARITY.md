@@ -27,7 +27,7 @@ recording/virtual-camera pipeline, without claiming an undocumented firmware imp
 | Gestures | Tracking/whiteboard gestures | ✅ mode | Firmware handles them inside their AI modes |
 | Image | HDR and exposure | ✅ | HDR, auto/manual exposure, curve, ISO, shutter |
 | Image | White balance and color | ✅ | Auto/manual WB, brightness, contrast, saturation, hue, sharpness |
-| Image | Anti-flicker | ✅ | Off, 50 Hz, and 60 Hz |
+| Image | Anti-flicker | ✅ | Off, 50 Hz, 60 Hz, and Auto |
 | Image | Color templates | ✅ | Twenty save/apply/delete templates |
 | Effects | Basic filters | ✅ | None, monochrome, punch, soft |
 | Effects | Blur, bokeh, replacement | ✅ local | Bundled person-segmentation model |
@@ -63,6 +63,12 @@ equivalent or leaves ownership with the vendor/compositor:
 | In-app proprietary firmware flashing/factory reset | Current firmware is shown and the official recovery-safe U-Disk instructions are linked. No unauthenticated firmware blob is written over an inferred protocol. |
 | Insta360 account, membership, or InSight cloud | Replaced with an account-free local recorder, offline transcription, and local summaries. Vendor identity/billing services cannot be cloned. |
 | Forcing a teleprompter above every Wayland surface | Link Studio creates a dedicated teleprompter window. Final stacking authority belongs to Hyprland/Wayland and is intentionally not bypassed. |
+
+Shutdown deliberately drains the camera worker on a non-daemon reaper before closing its file
+descriptor. This keeps the window responsive and prevents descriptor reuse while an ioctl is in
+flight. If a kernel driver ever leaves an ioctl permanently wedged, the window will close but the
+process can remain alive until that kernel call returns; detaching the thread would make the camera
+descriptor unsafe to close.
 
 This is the completed 1.0 contract: all rows in the application-controlled scope have a working
 implementation, while the boundary table documents functionality owned by proprietary services,

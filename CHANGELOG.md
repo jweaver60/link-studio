@@ -19,6 +19,9 @@ All notable changes to Link Studio are recorded here.
 - Made camera teardown immediately responsive while preserving descriptor safety, restored every
   preset-only effect/region control, retained live filters across pipeline rebuilds, retired stale
   frames after stream failures, and honored relocated XDG Documents directories.
+- Finalized recordings and stopped virtual-camera output on every preview failure, fully reset UI
+  state after rejected stream formats, and made shutdown cancellation authoritative across firmware
+  readers and queued main-thread completions.
 
 ## 1.0.0 — 2026-08-31
 

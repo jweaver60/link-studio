@@ -297,6 +297,8 @@ class Camera:
             length = int.from_bytes(raw, "little")
             if length <= 0:
                 raise CameraError(f"invalid XU length {length}")
+        except CameraOperationCancelled:
+            raise
         except (OSError, CameraError):
             if fallback is None:
                 raise
@@ -548,6 +550,8 @@ class Camera:
         for key, reader in custom_readers.items():
             try:
                 state[key] = reader()
+            except CameraOperationCancelled:
+                raise
             except (OSError, CameraError, ValueError, struct.error, IndexError) as exc:
                 errors[key] = str(exc)
         if errors:

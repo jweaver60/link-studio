@@ -2080,14 +2080,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
                 self.compact_status.set_label(self.preview.output_label)
             except Exception as exc:
                 self._toast(f"Preview failed: {exc}")
-                self._updating = True
-                button.set_active(False)
-                self._updating = False
+                self._set_preview_stopped_ui("Ready", "Preview is off")
         else:
-            if self.record_button.get_active():
-                self.record_button.set_active(False)
-            if hasattr(self, "virtual_camera_switch") and self.virtual_camera_switch.get_active():
-                self.virtual_camera_switch.set_active(False)
             self._stop_preview_poll()
             self.preview.stop()
             self._set_preview_stopped_ui("Ready", "Preview is off")
@@ -2130,9 +2124,7 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             except Exception as exc:
                 self._toast(f"Stream format unavailable: {exc}")
                 self._stop_preview_poll()
-                self._updating = True
-                self.preview_toggle.set_active(False)
-                self._updating = False
+                self._set_preview_stopped_ui("Ready", "Preview is off")
 
     def _start_preview_poll(self) -> None:
         if not self._preview_poll_source:
@@ -2144,6 +2136,12 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             self._preview_poll_source = 0
 
     def _set_preview_stopped_ui(self, status: str, placeholder: str) -> None:
+        # Keep these outside the preview-toggle update guard so their handlers finalize
+        # any active recording and shut down the virtual-camera pipeline.
+        if self.record_button.get_active():
+            self.record_button.set_active(False)
+        if hasattr(self, "virtual_camera_switch") and self.virtual_camera_switch.get_active():
+            self.virtual_camera_switch.set_active(False)
         self.latest_frame = None
         self.picture.set_paintable(None)
         self.preview_placeholder.set_visible(True)
@@ -2370,6 +2368,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
                 return
 
             def main_thread() -> bool:
+                if self._closed:
+                    return False
                 self._job_finished()
                 try:
                     result = done.result()
