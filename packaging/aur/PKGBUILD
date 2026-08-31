@@ -28,7 +28,7 @@ optdepends=(
   'whisper-cpp: offline meeting transcription'
 )
 source=("${pkgname}-${pkgver}.tar.gz::https://github.com/jweaver60/link-studio/releases/download/v${pkgver}/${pkgname}-${pkgver}.tar.gz")
-sha256sums=('0ffa8a011bf54a5d6ad12f6988476b93659c05b6f2c20cddd6d13adb48578455')
+sha256sums=('c5bf172d3663d71474751345e9d9621ae3ac0b4a0f3f3058867c8c993d411a02')
 
 build() {
   cd "link_studio-${pkgver}"

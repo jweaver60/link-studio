@@ -12,7 +12,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
       - name: Install native GTK and GStreamer dependencies
         run: |
           sudo apt-get update
@@ -20,7 +20,7 @@ jobs:
             gir1.2-adw-1 gir1.2-gst-plugins-base-1.0 gir1.2-gstreamer-1.0 \
             gir1.2-gtk-4.0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
             libadwaita-1-0 libgtk-4-1 python3-gi python3-gi-cairo
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10.0.1
       - name: Create the system-GTK-aware environment
         run: |
           uv venv --python /usr/bin/python3 --system-site-packages
@@ -36,11 +36,11 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.0.1
       - run: python scripts/check-site
       - run: uv build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.1
         with:
           name: link-studio-dist
           path: dist/
