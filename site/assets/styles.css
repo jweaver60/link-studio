@@ -128,29 +128,8 @@ code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, m
 .brand-mark {
   width: 26px;
   height: 26px;
-  position: relative;
   flex: 0 0 auto;
-  border: 2px solid var(--accent);
-  border-radius: 8px;
-}
-.brand-mark::before {
-  content: "";
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  inset: 7px;
-  border: 2px solid var(--accent);
-  border-radius: 50%;
-}
-.brand-mark::after {
-  content: "";
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  top: 4px;
-  right: 4px;
-  border-radius: 50%;
-  background: var(--accent);
+  background: url("icon.png") center / contain no-repeat;
 }
 .header-content {
   height: 100%;

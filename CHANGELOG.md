@@ -2,6 +2,11 @@
 
 All notable changes to Link Studio are recorded here.
 
+## 1.0.3 — 2026-09-02
+
+- Added a dedicated Link Studio application icon, with hand-checked hicolor assets from 16px to
+  1024px for crisp desktop, launcher, About dialog, and documentation rendering.
+
 ## 1.0.2 — 2026-08-31
 
 - Replaced the launch-style Pages site with a documentation-first guide and reference layout.

@@ -26,6 +26,12 @@ install -Dm644 "$PROJECT_DIR/data/io.github.linkstudio.LinkStudio.desktop" \
   "$DATA_ROOT/applications/io.github.linkstudio.LinkStudio.desktop"
 install -Dm644 "$PROJECT_DIR/data/io.github.linkstudio.LinkStudio.metainfo.xml" \
   "$DATA_ROOT/metainfo/io.github.linkstudio.LinkStudio.metainfo.xml"
+for icon in \
+  "$PROJECT_DIR"/data/icons/hicolor/*/apps/io.github.linkstudio.LinkStudio.png; do
+  size=$(basename "$(dirname "$(dirname "$icon")")")
+  install -Dm644 "$icon" \
+    "$DATA_ROOT/icons/hicolor/$size/apps/io.github.linkstudio.LinkStudio.png"
+done
 mkdir -p "$BIN_ROOT"
 ln -sfn "$INSTALL_ROOT/venv/bin/link-studio" "$BIN_ROOT/link-studio"
 install -Dm755 "$PROJECT_DIR/scripts/setup-virtual-camera" \
@@ -35,6 +41,9 @@ install -Dm755 "$PROJECT_DIR/scripts/setup-local-ai" \
 
 if command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database "$DATA_ROOT/applications"
+fi
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+  gtk-update-icon-cache --force --ignore-theme-index "$DATA_ROOT/icons/hicolor"
 fi
 
 printf 'Installed Link Studio. Run: %s/link-studio\n' "$BIN_ROOT"

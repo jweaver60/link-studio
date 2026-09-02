@@ -160,7 +160,7 @@ class LinkStudioApplication(Adw.Application):
     def _show_about(self, *_args: object) -> None:
         dialog = Adw.AboutDialog(
             application_name=APP_NAME,
-            application_icon="camera-web-symbolic",
+            application_icon="io.github.linkstudio.LinkStudio",
             developer_name="Link Studio contributors",
             version=__version__,
             license_type=Gtk.License.MIT_X11,

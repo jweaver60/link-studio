@@ -49,6 +49,13 @@ package() {
     "$pkgdir/usr/share/applications/io.github.linkstudio.LinkStudio.desktop"
   install -Dm644 data/io.github.linkstudio.LinkStudio.metainfo.xml \
     "$pkgdir/usr/share/metainfo/io.github.linkstudio.LinkStudio.metainfo.xml"
+  local icon size
+  for icon in data/icons/hicolor/*/apps/io.github.linkstudio.LinkStudio.png; do
+    size=${icon#data/icons/hicolor/}
+    size=${size%%/*}
+    install -Dm644 "$icon" \
+      "$pkgdir/usr/share/icons/hicolor/$size/apps/io.github.linkstudio.LinkStudio.png"
+  done
   install -Dm755 scripts/setup-virtual-camera \
     "$pkgdir/usr/bin/link-studio-setup-virtual-camera"
   install -Dm755 scripts/setup-local-ai \

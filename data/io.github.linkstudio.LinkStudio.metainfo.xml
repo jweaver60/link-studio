@@ -31,6 +31,11 @@
   </screenshots>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.0.3" date="2026-09-02">
+      <description>
+        <p>Dedicated multiresolution application icon and distribution integration.</p>
+      </description>
+    </release>
     <release version="1.0.2" date="2026-08-31">
       <description>
         <p>Documentation redesign and distribution-neutral Arch setup helpers.</p>
