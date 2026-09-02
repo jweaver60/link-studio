@@ -2,6 +2,11 @@
 
 All notable changes to Link Studio are recorded here.
 
+## 1.0.4 — 2026-09-02
+
+- Made user-scope icon installation independent of unrelated malformed icon-cache entries already
+  present in the local hicolor theme.
+
 ## 1.0.3 — 2026-09-02
 
 - Added a dedicated Link Studio application icon, with hand-checked hicolor assets from 16px to

@@ -42,8 +42,5 @@ install -Dm755 "$PROJECT_DIR/scripts/setup-local-ai" \
 if command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database "$DATA_ROOT/applications"
 fi
-if command -v gtk-update-icon-cache >/dev/null 2>&1; then
-  gtk-update-icon-cache --force --ignore-theme-index "$DATA_ROOT/icons/hicolor"
-fi
 
 printf 'Installed Link Studio. Run: %s/link-studio\n' "$BIN_ROOT"
