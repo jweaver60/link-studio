@@ -1,6 +1,6 @@
 # Maintainer: Jake Weaver <jakeweaver at hey dot com>
 pkgname=link-studio
-pkgver=1.0.3
+pkgver=1.0.4
 pkgrel=1
 pkgdesc="Native Linux controller for Insta360 Link webcams"
 arch=('any')
@@ -28,7 +28,7 @@ optdepends=(
   'whisper-cpp: offline meeting transcription'
 )
 source=("${pkgname}-${pkgver}.tar.gz::https://github.com/jweaver60/link-studio/releases/download/v${pkgver}/${pkgname}-${pkgver}.tar.gz")
-sha256sums=('a72fc869b75674fd5c3ded20c98b50de20b2ae1d499e7d3e8278a0831feeb866')
+sha256sums=('f04156d34ecf5e858bd259dca824f970af53ff177185516fafff15766a0880e9')
 
 build() {
   cd "link_studio-${pkgver}"
