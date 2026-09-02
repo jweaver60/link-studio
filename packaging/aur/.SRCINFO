@@ -1,6 +1,6 @@
 pkgbase = link-studio
 	pkgdesc = Native Linux controller for Insta360 Link webcams
-	pkgver = 1.0.2
+	pkgver = 1.0.3
 	pkgrel = 1
 	url = https://jweaver60.github.io/link-studio/
 	arch = any
@@ -25,7 +25,7 @@ pkgbase = link-studio
 	optdepends = v4l2loopback-dkms: processed virtual-camera output
 	optdepends = v4l2loopback-utils: virtual-camera controls
 	optdepends = whisper-cpp: offline meeting transcription
-	source = link-studio-1.0.2.tar.gz::https://github.com/jweaver60/link-studio/releases/download/v1.0.2/link-studio-1.0.2.tar.gz
-	sha256sums = b0fc912d8b7924661b57e427280c9766cbb0f01b7a2b3f3cdb1885969f8cfdc6
+	source = link-studio-1.0.3.tar.gz::https://github.com/jweaver60/link-studio/releases/download/v1.0.3/link-studio-1.0.3.tar.gz
+	sha256sums = a72fc869b75674fd5c3ded20c98b50de20b2ae1d499e7d3e8278a0831feeb866
 
 pkgname = link-studio
