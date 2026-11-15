@@ -59,6 +59,7 @@
                   <tr><td>Workflow</td><td>Scenes, compact mode, global actions, phone remote, teleprompter</td><td class="status-complete">Complete</td></tr>
                   <tr><td>Voice notes</td><td>Recording, markers, offline transcription, summaries</td><td class="status-local">Local equivalent</td></tr>
                   <tr><td>Device</td><td>Firmware/build display, support bundle, official update path</td><td class="status-complete">Safe path</td></tr>
+                  <tr><td>Original Link</td><td>Portrait resolutions and high frame rates compatibility toggle</td><td class="status-complete">Verified on 2e1a:4c01</td></tr>
                 </tbody>
               </table>
             </div>
@@ -66,7 +67,10 @@
 
             <h2 id="boundaries">Safety boundaries</h2>
             <h3>Firmware compatibility formats</h3>
-            <p>Link Studio lists every resolution and rate advertised by active firmware. It does not send unidentified writes to unlock firmware-only compatibility modes. The tested Link 2 firmware advertises 24, 25, and 30 fps through 4K.</p>
+            <p>Original Link (<code>2e1a:4c01</code>) has an explicit Device → <strong>Portrait resolutions and high frame rates</strong> toggle, verified on firmware <code>v1.4.5.8_build1</code>. Stop preview, recording and virtual output, and close other camera clients first: the camera may restart. Startup, scenes and phone remote never apply this setting. Successful verification refreshes advertised formats and retains a still-valid resolution/rate, without forcing 60 fps.</p>
+            <p>The protocol uses XU 9, selector 27, a strictly checked two-byte little-endian feature word and bit 5 (<code>0x0020</code>). All other bits, including separate portrait lock bit 10, are preserved. Unchanged states are not written; full-word readback is required. After initial verification, Link Studio closes the old descriptor, waits eight seconds for firmware restart, then polls for up to 24 seconds for the same model and USB physical port. It reopens the camera, clears cached lengths and checks the opened descriptor's port. Success requires both 720p and 1080p to show 60 fps when enabled (neither when disabled), plus feature-bit readback on the reopened descriptor. Preview stays blocked until recovery finishes, and uses the new video-node path if it changed. Empty/stale formats and transient reopen errors are retried, never the setting write. If verification or recovery fails, preview remains blocked until you reconnect the camera and reopen Link Studio; the application does not claim success. A missing physical-port identity is rejected before writing.</p>
+            <p>Provenance: analysis of the official <a href="https://file.insta360.com/static/cefa516e5f79760119332e093286255e/Insta360LinkController_2.0.3(build2).pkg">Controller 2.0.3 (build 2)</a> traced <code>EnableVerticalScreen</code> to <code>EnableExtendFuncWork</code> with bit index 5. Original-Link native capture confirmed 602 frames over 10.02 seconds; a separate 180-frame/3-second framehash sample contained 179 unique frames and one adjacent duplicate. No firmware was flashed; unplug/reboot persistence and other firmware are untested.</p>
+            <p><strong>Link 2 remains unverified for this toggle and is not offered it.</strong> Link Studio lists its advertised formats; the tested Link 2 firmware advertises 24, 25, and 30 fps through 4K. Compatibility writes are never guessed for other models.</p>
 
             <h3>Hardware-only orientation</h3>
             <p>Vertical flip and portrait rotations are supplied in the processed output path. Unknown persistent hardware-correction bits are not written.</p>

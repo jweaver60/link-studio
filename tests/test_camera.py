@@ -2,6 +2,8 @@ import ctypes
 import struct
 import threading
 import unittest
+from dataclasses import replace
+from unittest.mock import Mock, patch
 
 from link_studio.camera import (
     UVCIOC_CTRL_QUERY,
@@ -9,11 +11,158 @@ from link_studio.camera import (
     VIDIOC_QUERYCAP,
     VIDIOC_S_CTRL,
     Camera,
+    CameraDevice,
     CameraError,
     CameraOperationCancelled,
     _UvcXuControlQuery,
 )
 from link_studio.constants import AUDIO_MODES, STANDARD_CONTROLS, VIDEO_MODES
+
+
+class OriginalLinkCompatibilityTests(unittest.TestCase):
+    def camera(self, mask=0xC40C, product=0x4C01, vendor=0x2E1A):
+        camera = object.__new__(Camera)
+        camera.device = CameraDevice("/not-a-device", "Mock Link", vendor, product)
+        camera._lock = threading.RLock()
+        camera._xu_lengths = {(9, 27): 2}  # Must not trust even a cached fallback.
+        camera._xu_query = Mock(side_effect=[b"\x02\x00", mask.to_bytes(2, "little")])
+        camera.xu_set = Mock()
+        return camera
+
+    def test_model_and_vendor_gate_before_any_usb_operation(self):
+        for vendor, product in ((0x2E1A, 0x4C04), (0x1234, 0x4C01)):
+            camera = self.camera(product=product, vendor=vendor)
+            for operation in (
+                camera.get_portrait_high_fps,
+                lambda camera=camera: camera.set_portrait_high_fps(True),
+            ):
+                with self.assertRaises(CameraError):
+                    operation()
+            camera._xu_query.assert_not_called()
+            camera.xu_set.assert_not_called()
+
+    def test_only_bit_five_changes_and_full_word_is_verified(self):
+        for enabled, before, after in ((True, 0xC40C, 0xC42C), (False, 0xFFFF, 0xFFDF)):
+            camera = self.camera()
+            camera._xu_query.side_effect = [
+                b"\x02\x00",
+                before.to_bytes(2, "little"),
+                b"\x02\x00",
+                after.to_bytes(2, "little"),
+            ]
+            self.assertEqual(camera.set_portrait_high_fps(enabled), enabled)
+            camera.xu_set.assert_called_once_with(9, 27, after.to_bytes(2, "little"))
+            self.assertEqual(before & 0x0400, after & 0x0400)
+            self.assertTrue(
+                all(call.args[:2] == (9, 27) for call in camera._xu_query.call_args_list)
+            )
+
+    def test_idempotent_in_both_directions(self):
+        for enabled, mask in ((True, 0xFFFF), (False, 0xFFDF)):
+            camera = self.camera(mask)
+            self.assertEqual(camera.set_portrait_high_fps(enabled), enabled)
+            camera.xu_set.assert_not_called()
+
+    def test_invalid_lengths_never_write_or_fall_back(self):
+        for responses in (
+            [b"\x01\x00"],
+            [b"\x03\x00"],
+            [b""],
+            [OSError("GET_LEN rejected")],
+            [b"\x02\x00", b""],
+            [b"\x02\x00", b"123"],
+        ):
+            camera = self.camera()
+            camera._xu_query.side_effect = responses
+            with self.assertRaises((CameraError, OSError)):
+                camera.set_portrait_high_fps(True)
+            camera.xu_set.assert_not_called()
+
+    def test_write_rejection_and_failed_or_mismatched_readback_are_errors(self):
+        camera = self.camera()
+        camera.xu_set.side_effect = OSError("SET rejected")
+        with self.assertRaises(OSError):
+            camera.set_portrait_high_fps(True)
+        for readback in (b"\x0c\xc4", b"\x2d\xc4", b"", OSError("disconnected")):
+            camera = self.camera()
+            camera._xu_query.side_effect = [b"\x02\x00", b"\x0c\xc4", b"\x02\x00", readback]
+            with self.assertRaises((CameraError, OSError)):
+                camera.set_portrait_high_fps(True)
+
+
+class CameraReconnectTests(unittest.TestCase):
+    def setUp(self):
+        self.camera = object.__new__(Camera)
+        self.camera.device = CameraDevice("/mock/video0", "Link", 0x2E1A, 0x4C01, "usb-port-1")
+        self.camera._fd = 10
+        self.camera._lock = threading.RLock()
+        self.camera._cancel_operations = threading.Event()
+        self.camera._xu_lengths = {(9, 27): 2}
+        self.device = replace(self.camera.device, path="/mock/video4")
+
+        def query_capability(request, capability):
+            self.assertEqual(request, VIDIOC_QUERYCAP)
+            capability.bus_info = b"usb-port-1"
+
+        self.camera._ioctl = Mock(side_effect=query_capability)
+        self.open = patch("link_studio.camera.os.open", return_value=11).start()
+        self.close = patch("link_studio.camera.os.close").start()
+        self.addCleanup(patch.stopall)
+
+    def test_reopens_same_port_changed_node_and_clears_cached_lengths(self):
+        self.camera.reconnect(self.device)
+        self.close.assert_called_once_with(10)
+        self.open.assert_called_once()
+        self.assertEqual(self.camera._fd, 11)
+        self.assertEqual(self.camera.device, self.device)
+        self.assertEqual(self.camera._xu_lengths, {})
+        self.camera._ioctl.assert_called_once()
+
+    def test_rejects_wrong_or_missing_identity_before_closing(self):
+        for device in (
+            replace(self.device, vendor_id=0x1234),
+            replace(self.device, product_id=0x4C04),
+            replace(self.device, bus_info="usb-port-2"),
+            replace(self.device, bus_info=""),
+        ):
+            with self.assertRaisesRegex(CameraError, "different or unidentified"):
+                self.camera.reconnect(device)
+        self.camera.device = replace(self.camera.device, bus_info="")
+        with self.assertRaises(CameraError):
+            self.camera.reconnect(replace(self.device, bus_info=""))
+        self.open.assert_not_called()
+        self.close.assert_not_called()
+
+    def test_failed_open_leaves_closed_fd_and_can_be_retried(self):
+        self.open.side_effect = [OSError("not ready"), 11]
+        with self.assertRaises(OSError):
+            self.camera.reconnect(self.device)
+        self.assertEqual(self.camera._fd, -1)
+        self.camera.reconnect(self.device)
+        self.assertEqual(self.camera._fd, 11)
+        self.close.assert_called_once_with(10)
+
+    def test_reused_video_node_is_rejected_and_new_fd_closed(self):
+        self.camera._ioctl.side_effect = lambda _request, cap: setattr(
+            cap, "bus_info", b"usb-port-2"
+        )
+        with self.assertRaisesRegex(CameraError, "physical port"):
+            self.camera.reconnect(self.device)
+        self.assertEqual(self.camera._fd, -1)
+        self.assertEqual([call.args[0] for call in self.close.call_args_list], [10, 11])
+        self.assertEqual(self.camera.device.path, "/mock/video0")
+
+    def test_query_failure_and_cancellation_close_new_fd(self):
+        for error in (OSError("disconnected"), CameraOperationCancelled("shutdown")):
+            self.camera._ioctl.side_effect = error
+            with self.assertRaises(type(error)):
+                self.camera.reconnect(self.device)
+            self.assertEqual(self.camera._fd, -1)
+        self.camera.cancel_pending_operations()
+        self.open.reset_mock()
+        with self.assertRaises(CameraOperationCancelled):
+            self.camera.reconnect(self.device)
+        self.open.assert_not_called()
 
 
 class CameraAbiTests(unittest.TestCase):
