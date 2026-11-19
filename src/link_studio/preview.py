@@ -387,21 +387,33 @@ class Recorder:
         return self.output_path
 
 
-def discover_virtual_camera_devices(sys_root: Path = Path("/sys/class/video4linux")) -> list[str]:
-    """Return capture/output nodes backed by the v4l2loopback driver."""
+def _is_link_virtual_camera_name(name: str) -> bool:
+    """Return whether a V4L2 node name looks like Link Studio's loopback label."""
 
-    devices = []
+    words = set(re.findall(r"[a-z0-9]+", name.casefold()))
+    return "link" in words and "virtual" in words and any(word.startswith("cam") for word in words)
+
+
+def discover_virtual_camera_devices(sys_root: Path = Path("/sys/class/video4linux")) -> list[str]:
+    """Return Link Studio's virtual-camera node before other v4l2loopback nodes."""
+
+    link_devices = []
+    loopback_devices = []
     if not sys_root.exists():
-        return devices
+        return link_devices
     for node in sorted(sys_root.glob("video*"), key=lambda path: path.name):
         try:
-            name = (node / "name").read_text(encoding="utf-8", errors="replace").strip().casefold()
-            driver = (node / "device/driver").resolve().name.casefold()
+            name = (node / "name").read_text(encoding="utf-8", errors="replace").strip()
         except OSError:
             continue
-        if "v4l2loopback" in driver or "link studio virtual camera" in name:
-            devices.append(f"/dev/{node.name}")
-    return devices
+        driver = ""
+        with suppress(OSError):
+            driver = (node / "device/driver").resolve().name.casefold()
+        if _is_link_virtual_camera_name(name):
+            link_devices.append(f"/dev/{node.name}")
+        elif "v4l2loopback" in driver:
+            loopback_devices.append(f"/dev/{node.name}")
+    return link_devices + loopback_devices
 
 
 class VirtualCameraPublisher:

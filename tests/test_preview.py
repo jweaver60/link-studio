@@ -54,9 +54,44 @@ class VirtualCameraDiscoveryTests(unittest.TestCase):
             driver.mkdir(parents=True)
             device = root / "video20/device"
             device.mkdir(parents=True)
-            (root / "video20/name").write_text("Link Studio Virtual Camera\n")
+            (root / "video20/name").write_text("Other Loopback\n")
             (device / "driver").symlink_to(driver)
             self.assertEqual(discover_virtual_camera_devices(root), ["/dev/video20"])
+
+    def test_link_virtual_camera_labels_are_discovered_without_driver_link(self):
+        for label in ("Link Virtual Cam", "Link Studio Virtual Camera"):
+            with self.subTest(label=label), TemporaryDirectory() as directory:
+                root = Path(directory)
+                device = root / "video20"
+                device.mkdir()
+                (device / "name").write_text(f"{label}\n", encoding="utf-8")
+                self.assertEqual(discover_virtual_camera_devices(root), ["/dev/video20"])
+
+    def test_link_device_is_preferred_over_other_loopbacks(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            driver = root / "drivers/v4l2loopback"
+            driver.mkdir(parents=True)
+            for node_name, label in (
+                ("video10", "OBS Virtual Camera"),
+                ("video20", "Link Virtual Cam"),
+            ):
+                device = root / node_name / "device"
+                device.mkdir(parents=True)
+                (root / node_name / "name").write_text(f"{label}\n", encoding="utf-8")
+                (device / "driver").symlink_to(driver)
+            self.assertEqual(
+                discover_virtual_camera_devices(root),
+                ["/dev/video20", "/dev/video10"],
+            )
+
+    def test_unrelated_virtual_camera_label_is_ignored(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            device = root / "video20"
+            device.mkdir()
+            (device / "name").write_text("OBS Virtual Camera\n", encoding="utf-8")
+            self.assertEqual(discover_virtual_camera_devices(root), [])
 
     def test_gstreamer_values_are_quoted(self):
         self.assertEqual(_gst_quote('/dev/video" odd\\name'), '/dev/video\\" odd\\\\name')
