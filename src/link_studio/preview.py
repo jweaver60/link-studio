@@ -40,14 +40,16 @@ def parse_v4l2_formats(output: str) -> dict[tuple[int, int], tuple[int, ...]]:
     return {resolution: tuple(sorted(rates)) for resolution, rates in formats.items() if rates}
 
 
-def discover_capture_formats(device_path: str) -> dict[tuple[int, int], tuple[int, ...]]:
+def discover_capture_formats(
+    device_path: str, timeout: float = 6
+) -> dict[tuple[int, int], tuple[int, ...]]:
     try:
         result = subprocess.run(
             ["v4l2-ctl", "--device", device_path, "--list-formats-ext"],
             check=False,
             capture_output=True,
             text=True,
-            timeout=6,
+            timeout=timeout,
         )
     except (OSError, subprocess.TimeoutExpired):
         return {}

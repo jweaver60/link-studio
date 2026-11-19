@@ -225,6 +225,32 @@ class Camera:
                 os.close(self._fd)
                 self._fd = -1
 
+    def reconnect(self, device: CameraDevice) -> None:
+        """Reopen only the same USB model on the same known physical port."""
+        with self._lock:
+            self._check_cancelled()
+            original = self.device
+            if not original.bus_info or (device.vendor_id, device.product_id, device.bus_info) != (
+                original.vendor_id,
+                original.product_id,
+                original.bus_info,
+            ):
+                raise CameraError("Cannot reconnect a different or unidentified camera")
+            self.close()
+            self._xu_lengths.clear()
+            self._fd = os.open(device.path, os.O_RDWR | os.O_NONBLOCK)
+            try:
+                # Recheck the opened fd: a video node may be reused after discovery.
+                capability = _V4L2Capability()
+                self._ioctl(VIDIOC_QUERYCAP, capability)
+                if _decode_c_string(capability.bus_info) != original.bus_info:
+                    raise CameraError("Reopened camera physical port does not match")
+                self._check_cancelled()
+            except BaseException:
+                self.close()
+                raise
+            self.device = device
+
     def cancel_pending_operations(self) -> None:
         self._cancel_operations.set()
 
@@ -329,6 +355,40 @@ class Camera:
                 mask &= ~(1 << bit)
             self.xu_set(XU_FEATURE_UNIT, XU_FEATURE_MASK, mask.to_bytes(2, "little"))
         return self.get_feature(bit)
+
+    @property
+    def supports_portrait_high_fps(self) -> bool:
+        device = getattr(self, "device", None)
+        return bool(device and (device.vendor_id, device.product_id) == (0x2E1A, 0x4C01))
+
+    def _portrait_high_fps_mask(self) -> int:
+        if not self.supports_portrait_high_fps:
+            raise CameraError(
+                "Portrait resolutions and high frame rates requires the original Link"
+            )
+        # Query fresh: generic feature reads may have cached a fallback length.
+        length = self._xu_query(XU_FEATURE_UNIT, XU_FEATURE_MASK, UVC_GET_LEN, bytearray(2))
+        if length != b"\x02\x00":
+            raise CameraError("Expected a two-byte compatibility feature word")
+        raw = self._xu_query(XU_FEATURE_UNIT, XU_FEATURE_MASK, UVC_GET_CUR, bytearray(2))
+        if len(raw) != 2:
+            raise CameraError("Expected a two-byte compatibility feature word")
+        return int.from_bytes(raw, "little")
+
+    def get_portrait_high_fps(self) -> bool:
+        with self._lock:
+            return bool(self._portrait_high_fps_mask() & 0x0020)
+
+    def set_portrait_high_fps(self, enabled: bool) -> bool:
+        """Change only original-Link compatibility bit 5, never portrait-lock bit 10."""
+        with self._lock:
+            current = self._portrait_high_fps_mask()
+            desired = current | 0x0020 if enabled else current & ~0x0020
+            if desired != current:
+                self.xu_set(XU_FEATURE_UNIT, XU_FEATURE_MASK, desired.to_bytes(2, "little"))
+                if self._portrait_high_fps_mask() != desired:
+                    raise CameraError("Compatibility readback mismatch; reconnect the camera")
+            return bool(desired & 0x0020)
 
     def read_video_mode(self) -> str:
         raw = self.xu_get(XU_FEATURE_UNIT, XU_VIDEO_MODE, 61)
@@ -547,6 +607,8 @@ class Camera:
             "shutter_us": self.get_shutter,
             "device_information": self.get_device_information,
         }
+        if self.supports_portrait_high_fps:
+            custom_readers["portrait_high_fps"] = self.get_portrait_high_fps
         for key, reader in custom_readers.items():
             try:
                 state[key] = reader()

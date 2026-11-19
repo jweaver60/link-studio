@@ -34,6 +34,9 @@ from .camera import (
     FEATURE_HDR,
     FEATURE_MIRROR,
     Camera,
+    CameraError,
+    CameraOperationCancelled,
+    discover_cameras,
 )
 from .constants import (
     ANTI_FLICKER_LABELS,
@@ -118,6 +121,53 @@ def _start_camera_drain(
     return thread
 
 
+def _rediscover_compatibility_formats(
+    camera: Camera, enabled: bool
+) -> dict[tuple[int, int], tuple[int, ...]]:
+    """Recover from the firmware restart without ever repeating the setting write."""
+    identity = camera.device
+    if not identity.bus_info:
+        raise CameraError("Cannot safely reconnect without the camera USB physical port")
+    camera.close()
+    # The original Link can advertise stale caps before its delayed restart.
+    camera._wait_or_cancel(8.0)
+    deadline = time.monotonic() + 24.0
+    last_error = "camera has not reappeared on its original USB port"
+    while True:
+        camera._check_cancelled()
+        try:
+            matches = [
+                device
+                for device in discover_cameras()
+                if (device.vendor_id, device.product_id, device.bus_info)
+                == (identity.vendor_id, identity.product_id, identity.bus_info)
+            ]
+            if len(matches) > 1:
+                raise CameraError("Ambiguous capture nodes on the original camera USB port")
+            if matches:
+                camera.reconnect(matches[0])
+                formats = discover_capture_formats(
+                    camera.device.path, timeout=min(1.0, max(0.01, deadline - time.monotonic()))
+                )
+                camera._check_cancelled()
+                # Both landscape modes are known to change on the verified firmware.
+                rates = [formats.get(size, ()) for size in ((1280, 720), (1920, 1080))]
+                if all(rates) and all((60 in values) == enabled for values in rates):
+                    if camera.get_portrait_high_fps() == enabled:
+                        return formats
+                    last_error = "compatibility bit did not match after reopening"
+                else:
+                    last_error = "formats are empty or still advertise the previous state"
+        except CameraOperationCancelled:
+            raise
+        except (CameraError, OSError) as exc:
+            last_error = str(exc)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise CameraError(f"Timed out rediscovering camera formats: {last_error}")
+        camera._wait_or_cancel(min(0.5, remaining))
+
+
 def _videos_dir() -> Path:
     value = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_VIDEOS)
     return Path(value) if value else Path.home() / "Videos"
@@ -160,6 +210,8 @@ class LinkStudioWindow(Adw.ApplicationWindow):
             self.capture_formats.get((1280, 720), tuple(self._all_stream_rates))
         )
         self._changing_stream_controls = False
+        self._compatibility_pending = False
+        self._compatibility_failed = False
         self.presets = PresetStore()
         self.color_presets = ColorPresetStore()
         self.script_store = ScriptStore()
@@ -1216,6 +1268,29 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         information.add(firmware_row)
         content.append(information)
 
+        if self.camera.supports_portrait_high_fps:
+            compatibility = self._group(
+                "Original Link compatibility",
+                "The camera may restart. Stop preview, recording and virtual output first. "
+                "Close other camera applications before changing this setting.",
+            )
+            self.compatibility_row = self._action_row("Portrait resolutions and high frame rates")
+            self.compatibility_switch = Gtk.Switch(
+                active=bool(self.state.get("portrait_high_fps", False)), valign=Gtk.Align.CENTER
+            )
+            if "portrait_high_fps" not in self.state:
+                self.compatibility_switch.set_sensitive(False)
+                self.compatibility_row.set_subtitle(
+                    "State unavailable; reconnect the camera to retry"
+                )
+            self.compatibility_switch.connect(
+                "notify::active",
+                lambda switch, _param: self._set_portrait_high_fps(switch.get_active()),
+            )
+            self.compatibility_row.add_suffix(self.compatibility_switch)
+            compatibility.add(self.compatibility_row)
+            content.append(compatibility)
+
         remote = self._group(
             "Phone remote",
             "Starts a token-authenticated controller on this LAN only. "
@@ -2068,6 +2143,76 @@ class LinkStudioWindow(Adw.ApplicationWindow):
 
     # ------------------------------------------------------------- operations
 
+    def _set_portrait_high_fps(self, enabled: bool) -> None:
+        if self._updating or self._compatibility_pending or self._compatibility_failed:
+            return
+        # Restore the confirmed state until the worker has verified the change.
+        self._updating = True
+        self.compatibility_switch.set_active(bool(self.state.get("portrait_high_fps", False)))
+        self._updating = False
+        if self.preview.running or self.recorder is not None or self.virtual_camera is not None:
+            self._toast("Stop preview, recording and virtual output before changing compatibility")
+            return
+        self._compatibility_pending = True
+        self.compatibility_switch.set_sensitive(False)
+
+        def operation() -> tuple[bool, dict[tuple[int, int], tuple[int, ...]]]:
+            if not self.camera.device.bus_info:
+                raise CameraError("Cannot safely reconnect without the camera USB physical port")
+            confirmed = self.camera.set_portrait_high_fps(enabled)
+            return confirmed, _rediscover_compatibility_formats(self.camera, confirmed)
+
+        def success(result: tuple[bool, dict[tuple[int, int], tuple[int, ...]]]) -> None:
+            confirmed, formats = result
+            self.preview.device_path = self.camera.device.path
+            self.window_title.set_subtitle(
+                f"{self.camera.device.model} · {self.camera.device.path}"
+            )
+            self._refresh_capture_formats(formats)
+            self.state["portrait_high_fps"] = confirmed
+            self._updating = True
+            self.compatibility_switch.set_active(confirmed)
+            self._updating = False
+            self._compatibility_pending = False
+            self.compatibility_switch.set_sensitive(True)
+            self.compatibility_row.set_subtitle("")
+
+        def failure(_error: Exception) -> None:
+            self._compatibility_pending = False
+            self._compatibility_failed = True
+            self.state.pop("portrait_high_fps", None)
+            self.compatibility_row.set_subtitle(
+                "State unknown. Camera may have restarted; reconnect and reopen Link Studio."
+            )
+            self._toast("Compatibility could not be verified. Reconnect and reopen Link Studio.")
+
+        self._submit("Compatibility verified; formats refreshed", operation, success, failure)
+
+    def _refresh_capture_formats(self, formats: dict[tuple[int, int], tuple[int, ...]]) -> None:
+        resolution = self._stream_resolutions[self.resolution_dropdown.get_selected()]
+        rate = self._stream_rates[self.fps_dropdown.get_selected()]
+        self._changing_stream_controls = True
+        try:
+            self.capture_formats = formats
+            self._stream_resolutions = sorted(formats, key=lambda size: size[0] * size[1])
+            self._all_stream_rates = sorted({fps for rates in formats.values() for fps in rates})
+            if resolution not in formats:
+                resolution = self._stream_resolutions[0]
+            self._stream_rates = list(formats[resolution])
+            if rate not in self._stream_rates:
+                rate = 30 if 30 in self._stream_rates else self._stream_rates[0]
+            self.resolution_dropdown.set_model(
+                Gtk.StringList.new([f"{w}×{h}" for w, h in self._stream_resolutions])
+            )
+            self.resolution_dropdown.set_selected(self._stream_resolutions.index(resolution))
+            self.fps_dropdown.set_model(
+                Gtk.StringList.new([f"{fps} fps" for fps in self._stream_rates])
+            )
+            self.fps_dropdown.set_selected(self._stream_rates.index(rate))
+            self.preview.config = PreviewConfig(*resolution, rate)
+        finally:
+            self._changing_stream_controls = False
+
     def _activate_preview(self) -> bool:
         self.preview_toggle.set_active(True)
         return False
@@ -2076,6 +2221,14 @@ class LinkStudioWindow(Adw.ApplicationWindow):
         if self._updating:
             return
         if button.get_active():
+            if self._compatibility_failed:
+                self._toast("Reconnect and reopen Link Studio before starting preview")
+                self._set_preview_stopped_ui("Reconnect required", "Preview is off")
+                return
+            if self._compatibility_pending:
+                self._toast("Wait for the compatibility change before starting preview")
+                self._set_preview_stopped_ui("Ready", "Preview is off")
+                return
             try:
                 self.preview.start()
                 self._start_preview_poll()

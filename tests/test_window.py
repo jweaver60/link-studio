@@ -4,11 +4,17 @@ from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from link_studio.camera import CameraDevice, CameraError, CameraOperationCancelled
 from link_studio.constants import ANTI_FLICKER_LABELS, TRACKING_SPEED_MAX
 from link_studio.effects import EffectSettings
 from link_studio.geometry import contained_rect, frame_region_from_drag
 from link_studio.presets import Preset
-from link_studio.window import LinkStudioWindow, _start_camera_drain, control_dropdown_index
+from link_studio.window import (
+    LinkStudioWindow,
+    _rediscover_compatibility_formats,
+    _start_camera_drain,
+    control_dropdown_index,
+)
 
 
 class _FakeSwitch:
@@ -55,6 +61,9 @@ class _FakeDropDown:
 
     def set_selected(self, selected):
         self.selected = selected
+
+    def set_model(self, model):
+        self.model = model
 
     def get_selected(self):
         return self.selected
@@ -127,7 +136,236 @@ def _immediate_submit(_message, operation, on_success=None, **_kwargs):
         on_success(result)
 
 
+class CompatibilityRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        self.device = CameraDevice("/mock/video0", "Link", 0x2E1A, 0x4C01, "usb-port-1")
+        self.returned = replace(self.device, path="/mock/video4")
+        self.camera = Mock(device=self.device)
+        self.clock = 0.0
+        self.camera._wait_or_cancel.side_effect = self.wait
+        self.camera.reconnect.side_effect = lambda device: setattr(self.camera, "device", device)
+        self.discovery = patch(
+            "link_studio.window.discover_cameras", return_value=[self.returned]
+        ).start()
+        self.formats = patch("link_studio.window.discover_capture_formats").start()
+        patch("link_studio.window.time.monotonic", side_effect=lambda: self.clock).start()
+        self.addCleanup(patch.stopall)
+        self.low = {(1280, 720): (24, 30), (1920, 1080): (24, 30)}
+        self.high = {(1280, 720): (24, 30, 60), (1920, 1080): (24, 30, 60)}
+
+    def wait(self, seconds):
+        self.clock += seconds
+
+    def test_transient_empty_and_old_formats_in_both_directions(self):
+        for enabled, old, new in ((True, self.low, self.high), (False, self.high, self.low)):
+            self.camera.get_portrait_high_fps.return_value = enabled
+            self.formats.side_effect = [{}, old, new]
+            self.camera.reset_mock()
+            self.assertEqual(_rediscover_compatibility_formats(self.camera, enabled), new)
+            self.assertEqual(self.camera.reconnect.call_count, 3)
+            self.assertEqual(self.camera.device.path, "/mock/video4")
+            self.camera._wait_or_cancel.assert_any_call(8.0)
+            self.camera.set_portrait_high_fps.assert_not_called()
+            self.camera.close.assert_called_once()
+
+    def test_missing_camera_and_reopen_errors_are_retried(self):
+        self.discovery.side_effect = [[], [self.returned], [self.returned]]
+        self.camera.reconnect.side_effect = [OSError("not ready"), None]
+        self.camera.get_portrait_high_fps.return_value = True
+        self.formats.return_value = self.high
+        self.assertEqual(_rediscover_compatibility_formats(self.camera, True), self.high)
+        self.assertEqual(self.discovery.call_count, 3)
+
+    def test_wrong_port_or_ambiguous_nodes_never_reopen(self):
+        for devices in (
+            [replace(self.device, bus_info="usb-port-2")],
+            [self.returned, self.returned],
+        ):
+            self.discovery.return_value = devices
+            with self.assertRaisesRegex(CameraError, "Timed out"):
+                _rediscover_compatibility_formats(self.camera, True)
+            self.camera.reconnect.assert_not_called()
+            self.formats.assert_not_called()
+
+    def test_empty_stale_partial_formats_and_readback_errors_time_out(self):
+        for formats, readback in (
+            ({}, True),
+            (self.low, True),
+            ({(1280, 720): (60,)}, True),
+            (self.high, False),
+            (self.high, OSError("stale fd")),
+        ):
+            self.formats.return_value = formats
+            self.camera.get_portrait_high_fps.side_effect = (
+                readback if isinstance(readback, Exception) else None
+            )
+            self.camera.get_portrait_high_fps.return_value = readback
+            start = self.clock
+            with self.assertRaisesRegex(CameraError, "Timed out"):
+                _rediscover_compatibility_formats(self.camera, True)
+            self.assertLessEqual(self.clock - start, 32.0)
+            self.camera.set_portrait_high_fps.assert_not_called()
+
+    def test_cancellation_during_restart_and_polling_is_not_swallowed(self):
+        self.camera._wait_or_cancel.side_effect = CameraOperationCancelled("shutdown")
+        with self.assertRaises(CameraOperationCancelled):
+            _rediscover_compatibility_formats(self.camera, True)
+        self.discovery.assert_not_called()
+        self.camera._wait_or_cancel.side_effect = self.wait
+        self.camera.reconnect.side_effect = CameraOperationCancelled("shutdown")
+        with self.assertRaises(CameraOperationCancelled):
+            _rediscover_compatibility_formats(self.camera, True)
+        self.formats.assert_not_called()
+
+
 class WindowRegressionTests(unittest.TestCase):
+    def compatibility_window(self):
+        window = SimpleNamespace(
+            _updating=False,
+            _compatibility_pending=False,
+            _compatibility_failed=False,
+            state={"portrait_high_fps": False},
+            compatibility_switch=Mock(),
+            compatibility_row=Mock(),
+            window_title=Mock(),
+            preview=SimpleNamespace(running=False),
+            recorder=None,
+            virtual_camera=None,
+            camera=Mock(),
+            _toast=Mock(),
+            _submit=Mock(),
+            _refresh_capture_formats=Mock(),
+        )
+        return window
+
+    def test_compatibility_refuses_every_active_consumer(self):
+        for consumer in ("preview", "recorder", "virtual_camera"):
+            window = self.compatibility_window()
+            if consumer == "preview":
+                window.preview.running = True
+            else:
+                setattr(window, consumer, object())
+            LinkStudioWindow._set_portrait_high_fps(window, True)
+            window._submit.assert_not_called()
+            window.camera.set_portrait_high_fps.assert_not_called()
+            window.compatibility_switch.set_active.assert_called_once_with(False)
+
+    def test_compatibility_programmatic_updates_and_duplicate_requests_are_ignored(self):
+        for flag in ("_updating", "_compatibility_pending", "_compatibility_failed"):
+            window = self.compatibility_window()
+            setattr(window, flag, True)
+            LinkStudioWindow._set_portrait_high_fps(window, True)
+            window._submit.assert_not_called()
+
+    def test_compatibility_worker_refreshes_only_after_verification(self):
+        window = self.compatibility_window()
+        window.camera.set_portrait_high_fps.return_value = True
+        formats = {(1280, 720): (30, 60)}
+        LinkStudioWindow._set_portrait_high_fps(window, True)
+        self.assertTrue(window._compatibility_pending)
+        _, operation, success, failure = window._submit.call_args.args
+        with patch("link_studio.window._rediscover_compatibility_formats", return_value=formats):
+            result = operation()
+        window._refresh_capture_formats.assert_not_called()
+        success(result)
+        window._refresh_capture_formats.assert_called_once_with(formats)
+        self.assertTrue(window.state["portrait_high_fps"])
+        self.assertFalse(window._compatibility_pending)
+        self.assertEqual(window.preview.device_path, window.camera.device.path)
+        window.camera.set_portrait_high_fps.assert_called_once_with(True)
+        window.camera.set_portrait_high_fps.side_effect = RuntimeError("disconnected")
+        with patch("link_studio.window.discover_capture_formats") as discover:
+            with self.assertRaises(RuntimeError):
+                operation()
+            discover.assert_not_called()
+        failure(RuntimeError("disconnected"))
+        self.assertNotIn("portrait_high_fps", window.state)
+        self.assertIn("reconnect", window.compatibility_row.set_subtitle.call_args.args[0])
+
+    def test_compatibility_recovery_timeout_is_not_success(self):
+        window = self.compatibility_window()
+        LinkStudioWindow._set_portrait_high_fps(window, True)
+        operation = window._submit.call_args.args[1]
+        with (
+            patch(
+                "link_studio.window._rediscover_compatibility_formats",
+                side_effect=CameraError("Timed out rediscovering camera formats"),
+            ),
+            self.assertRaisesRegex(CameraError, "rediscover"),
+        ):
+            operation()
+
+    def test_failed_recovery_keeps_preview_blocked_after_video_node_changes(self):
+        window = self.compatibility_window()
+        window.preview.device_path = "/mock/video0"
+        window.preview.start = Mock()
+        window._set_preview_stopped_ui = Mock()
+        LinkStudioWindow._set_portrait_high_fps(window, True)
+        _, operation, _success, failure = window._submit.call_args.args
+
+        def reopened_but_unverified(_camera, _enabled):
+            window.camera.device.path = "/mock/video4"
+            raise CameraError("Timed out verifying formats")
+
+        with (
+            patch(
+                "link_studio.window._rediscover_compatibility_formats",
+                side_effect=reopened_but_unverified,
+            ),
+            self.assertRaisesRegex(CameraError, "Timed out") as error,
+        ):
+            operation()
+        failure(error.exception)
+        self.assertFalse(window._compatibility_pending)
+        self.assertTrue(window._compatibility_failed)
+        LinkStudioWindow._preview_toggled(window, _FakeSwitch(True))
+        window.preview.start.assert_not_called()
+        window._set_preview_stopped_ui.assert_called_once()
+        self.assertIn("reopen", window._toast.call_args.args[0])
+
+    def test_compatibility_missing_physical_identity_never_writes(self):
+        window = self.compatibility_window()
+        window.camera.device.bus_info = ""
+        LinkStudioWindow._set_portrait_high_fps(window, True)
+        with self.assertRaisesRegex(CameraError, "physical port"):
+            window._submit.call_args.args[1]()
+        window.camera.set_portrait_high_fps.assert_not_called()
+
+    def test_preview_cannot_start_during_compatibility_change(self):
+        window = SimpleNamespace(
+            _updating=False,
+            _compatibility_pending=True,
+            _compatibility_failed=False,
+            preview=Mock(),
+            _toast=Mock(),
+            _set_preview_stopped_ui=Mock(),
+        )
+        LinkStudioWindow._preview_toggled(window, _FakeSwitch(True))
+        window.preview.start.assert_not_called()
+        window._set_preview_stopped_ui.assert_called_once()
+
+    def test_format_refresh_preserves_valid_selection_and_handles_removed_modes(self):
+        window = SimpleNamespace(
+            _stream_resolutions=[(1280, 720), (1920, 1080)],
+            _stream_rates=[30, 60],
+            resolution_dropdown=_FakeDropDown(1),
+            fps_dropdown=_FakeDropDown(0),
+            preview=SimpleNamespace(config=None),
+            _changing_stream_controls=False,
+        )
+        fake_gtk = SimpleNamespace(StringList=SimpleNamespace(new=lambda values: values))
+        with patch("link_studio.window.Gtk", fake_gtk):
+            LinkStudioWindow._refresh_capture_formats(
+                window, {(720, 1280): (30, 60), (1920, 1080): (24, 30, 60)}
+            )
+            self.assertEqual(window.preview.config.width, 1920)
+            self.assertEqual(window.preview.config.fps, 30)
+            window.fps_dropdown.set_selected(2)
+            LinkStudioWindow._refresh_capture_formats(window, {(1280, 720): (24, 30)})
+        self.assertEqual(window.preview.config.width, 1280)
+        self.assertEqual(window.preview.config.fps, 30)
+        self.assertFalse(window._changing_stream_controls)
+
     def test_camera_drain_returns_before_the_worker_and_closes_afterward(self):
         executor = _BlockingExecutor()
         camera = _ClosableCamera()
