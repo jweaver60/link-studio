@@ -3,7 +3,43 @@ set -euo pipefail
 
 PROJECT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 DEV_ENV="$PROJECT_DIR/.venv"
-SYSTEM_PYTHON=${LINK_STUDIO_PYTHON:-$(command -v python)}
+find_python() {
+  if [[ -n "${LINK_STUDIO_PYTHON:-}" ]]; then
+    if ! command -v "$LINK_STUDIO_PYTHON" >/dev/null 2>&1; then
+      printf 'Python interpreter specified by LINK_STUDIO_PYTHON not found: %s\n' "$LINK_STUDIO_PYTHON" >&2
+      exit 1
+    fi
+    command -v "$LINK_STUDIO_PYTHON"
+    return 0
+  fi
+
+  for candidate in python3.14 python3.13 python3.12 python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      if "$candidate" -c 'import sys, gi; sys.exit(0 if sys.version_info >= (3, 12) else 1)' >/dev/null 2>&1; then
+        command -v "$candidate"
+        return 0
+      fi
+    fi
+  done
+
+  for candidate in python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      command -v "$candidate"
+      return 0
+    fi
+  done
+
+  printf 'Link Studio requires Python >= 3.12 and the system GTK bindings (python-gobject / gi), but no Python interpreter was found.\n' >&2
+  exit 1
+}
+
+SYSTEM_PYTHON=$(find_python)
+
+if ! "$SYSTEM_PYTHON" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)' >/dev/null 2>&1; then
+  current_version=$("$SYSTEM_PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")' 2>/dev/null || echo "unknown")
+  printf 'Link Studio requires Python >= 3.12 (found Python %s at %s).\n' "$current_version" "$SYSTEM_PYTHON" >&2
+  exit 1
+fi
 
 if ! "$SYSTEM_PYTHON" -c 'import gi' >/dev/null 2>&1; then
   printf 'Link Studio requires the system GTK bindings (python-gobject / gi).\n' >&2
@@ -11,7 +47,7 @@ if ! "$SYSTEM_PYTHON" -c 'import gi' >/dev/null 2>&1; then
 fi
 
 if [[ ! -x "$DEV_ENV/bin/python" ]] || \
-  ! "$DEV_ENV/bin/python" -c 'import gi' >/dev/null 2>&1; then
+  ! "$DEV_ENV/bin/python" -c 'import sys, gi; sys.exit(0 if sys.version_info >= (3, 12) else 1)' >/dev/null 2>&1; then
   if ! command -v uv >/dev/null 2>&1; then
     printf 'Link Studio development requires uv: https://docs.astral.sh/uv/\n' >&2
     exit 1
